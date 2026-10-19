@@ -83,6 +83,15 @@ export default function PropertyDetailPage() {
     property.priceBasis || (property.category === "Rental" ? "month" : "listing");
   const tripDatesValid =
     !checkIn || !checkOut || new Date(checkOut) > new Date(checkIn);
+  const nights =
+    checkIn && checkOut && tripDatesValid
+      ? (Date.parse(`${checkOut}T00:00:00Z`) - Date.parse(`${checkIn}T00:00:00Z`)) /
+        86_400_000
+      : 0;
+  const nightlyRate = Number(property.price);
+  const cleaningFee = Number(property.cleaningFee) || 0;
+  const accommodationTotal = nights * nightlyRate;
+  const estimatedTotal = accommodationTotal + cleaningFee;
   const stayMessage = [
     checkIn && checkOut
       ? `I am interested in ${checkIn} to ${checkOut}`
@@ -302,6 +311,53 @@ export default function PropertyDetailPage() {
               {!tripDatesValid && (
                 <p role="alert" className="mt-3 text-xs text-[#a1392d]">
                   Check-out must be after check-in.
+                </p>
+              )}
+              {nights > 0 && priceBasis === "night" && (
+                <div
+                  aria-label="Estimated price breakdown"
+                  className="mt-4 space-y-2 rounded-2xl bg-[#f7f5f1] p-4 text-xs text-[#526058]"
+                >
+                  <div className="flex justify-between gap-3">
+                    <span>
+                      ₹{nightlyRate.toLocaleString("en-IN")} × {nights}{" "}
+                      {nights === 1 ? "night" : "nights"}
+                    </span>
+                    <span>₹{accommodationTotal.toLocaleString("en-IN")}</span>
+                  </div>
+                  {cleaningFee > 0 && (
+                    <div className="flex justify-between gap-3">
+                      <span>Cleaning fee</span>
+                      <span>₹{cleaningFee.toLocaleString("en-IN")}</span>
+                    </div>
+                  )}
+                  <div className="flex justify-between border-t border-[#e1dfd8] pt-2 font-semibold text-[#29352f]">
+                    <span>Estimated subtotal</span>
+                    <span>₹{estimatedTotal.toLocaleString("en-IN")}</span>
+                  </div>
+                  <div className="flex justify-between gap-3">
+                    <span>70% intended online payment</span>
+                    <span>₹{(estimatedTotal * 0.7).toLocaleString("en-IN", {
+                      maximumFractionDigits: 2,
+                    })}</span>
+                  </div>
+                  <div className="flex justify-between gap-3">
+                    <span>30% intended at check-in</span>
+                    <span>₹{(estimatedTotal * 0.3).toLocaleString("en-IN", {
+                      maximumFractionDigits: 2,
+                    })}</span>
+                  </div>
+                  <p className="border-t border-[#e1dfd8] pt-2 leading-5 text-[#758078]">
+                    Estimate only, before taxes and platform fees. Booking and
+                    payments are not enabled; your dates are not reserved.
+                  </p>
+                </div>
+              )}
+              {nights > 0 && priceBasis !== "night" && (
+                <p className="mt-3 rounded-xl bg-[#f7f5f1] p-3 text-xs leading-5 text-[#758078]">
+                  This listing is priced per {priceBasis === "month" ? "month" : "stay"}.
+                  A date-based quote is not available yet; ask support to confirm
+                  the price and availability.
                 </p>
               )}
               <button
