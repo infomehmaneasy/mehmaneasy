@@ -137,7 +137,7 @@ export default function Navbar() {
 
         <div className="hidden items-center gap-3 md:flex">
           <Link
-            href={user ? "/post" : "/register"}
+            href="/post"
             className={`rounded-full px-4 py-2.5 text-sm font-medium transition ${
               isLight
                 ? "text-[#3c4941] hover:bg-[#f4f2ed]"
@@ -292,7 +292,7 @@ export default function Navbar() {
                 {user ? "Your dashboard" : "Log in"}
               </Link>
               <Link
-                href={user ? "/post" : "/register"}
+                href="/post"
                 className="block rounded-xl px-4 py-3 text-sm transition hover:bg-[#f7f5f1]"
               >
                 {user ? "List your property" : "Sign up to host"}

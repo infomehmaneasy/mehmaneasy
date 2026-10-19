@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { BadgeCheck, Clock3, ShieldAlert } from "lucide-react";
+import { BadgeCheck, Clock3, ShieldAlert, Trash2 } from "lucide-react";
 import Navbar from "@/components/Navbar";
 import BookingPanel from "@/components/BookingPanel";
 import { useAuth } from "@/context/AuthContext";
@@ -10,9 +10,12 @@ export default function AdminPage() {
   const { user, loading: authLoading, getAccessToken } = useAuth();
   const [properties, setProperties] = useState([]);
   const [enquiries, setEnquiries] = useState([]);
+  const [marketplaceListings, setMarketplaceListings] = useState([]);
   const [activeTab, setActiveTab] = useState("properties");
   const [notes, setNotes] = useState({});
   const [loading, setLoading] = useState(true);
+  const [marketplaceLoading, setMarketplaceLoading] = useState(false);
+  const [marketplaceLoaded, setMarketplaceLoaded] = useState(false);
   const [busyId, setBusyId] = useState("");
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
@@ -46,6 +49,33 @@ export default function AdminPage() {
       setLoading(false);
     }
   }, [getAccessToken, user]);
+
+  async function loadMarketplaceListings() {
+    if (!user) return;
+    setMarketplaceLoading(true);
+    setError("");
+    try {
+      const token = await getAccessToken();
+      const response = await fetch("/api/admin/properties?scope=marketplace", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "Unable to load marketplace listings.");
+      setMarketplaceListings(data.properties || []);
+      setMarketplaceLoaded(true);
+    } catch (loadError) {
+      setError(loadError.message || "Unable to load marketplace listings.");
+    } finally {
+      setMarketplaceLoading(false);
+    }
+  }
+
+  function selectTab(tab) {
+    setActiveTab(tab);
+    if (tab === "manage" && !marketplaceLoaded && !marketplaceLoading) {
+      loadMarketplaceListings();
+    }
+  }
 
   useEffect(() => {
     if (authLoading) return;
@@ -112,6 +142,30 @@ export default function AdminPage() {
     }
   }
 
+  async function removeMarketplaceListing(property) {
+    if (!window.confirm(`Remove “${property.title}” from public search? Existing booking records will be preserved.`)) {
+      return;
+    }
+    setBusyId(property._id);
+    setError("");
+    setMessage("");
+    try {
+      const token = await getAccessToken();
+      const response = await fetch(`/api/admin/properties/${property._id}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "Unable to remove this listing.");
+      setMarketplaceListings((items) => items.filter((item) => item._id !== property._id));
+      setMessage("Listing removed from public search. Existing bookings were preserved.");
+    } catch (removeError) {
+      setError(removeError.message || "Unable to remove this listing.");
+    } finally {
+      setBusyId("");
+    }
+  }
+
   return (
     <main className="min-h-screen bg-[#fffdf9] text-[#24302b]">
       <Navbar />
@@ -130,13 +184,14 @@ export default function AdminPage() {
         <div className="mt-8 flex gap-2 border-b border-[#e8e7e1]">
           {[
             ["properties", `Property reviews (${properties.length})`],
+            ["manage", `Marketplace listings (${marketplaceListings.length})`],
             ["enquiries", `Guest questions (${enquiries.length})`],
             ["bookings", "Bookings"],
           ].map(([tab, label]) => (
             <button
               key={tab}
               type="button"
-              onClick={() => setActiveTab(tab)}
+              onClick={() => selectTab(tab)}
               className={`border-b-2 px-4 py-3 text-sm font-semibold ${
                 activeTab === tab
                   ? "border-[#bd604a] text-[#bd604a]"
@@ -170,8 +225,16 @@ export default function AdminPage() {
               <div key={item} className="h-64 animate-pulse rounded-3xl bg-[#f0eee8]" />
             ))}
           </div>
+        ) : activeTab === "manage" && marketplaceLoading ? (
+          <div className="mt-10 grid gap-5">
+            {[0, 1].map((item) => (
+              <div key={item} className="h-48 animate-pulse rounded-3xl bg-[#f0eee8]" />
+            ))}
+          </div>
         ) : user && !error && activeTab === "properties" && properties.length === 0 ? (
           <EmptyState title="Review queue is clear" detail="No pending property reviews." />
+        ) : user && !error && activeTab === "manage" && marketplaceListings.length === 0 ? (
+          <EmptyState title="No live marketplace listings" detail="Approved stays available to guests will appear here." />
         ) : user && !error && activeTab === "enquiries" && enquiries.length === 0 ? (
           <EmptyState title="No guest questions" detail="New pre-booking questions appear here." />
         ) : activeTab === "bookings" ? (
@@ -247,6 +310,36 @@ export default function AdminPage() {
                     </div>
                   </div>
                 </div>
+              </article>
+            ))}
+          </div>
+        ) : activeTab === "manage" ? (
+          <div className="mt-10 grid gap-4">
+            {marketplaceListings.map((property) => (
+              <article key={property._id} className="flex flex-col gap-4 rounded-3xl border border-[#e8e7e1] bg-white p-4 sm:flex-row sm:items-center sm:p-5">
+                <img
+                  src={property.images?.[0] || "/logo.png"}
+                  alt=""
+                  className="h-44 w-full rounded-2xl object-cover sm:h-24 sm:w-32"
+                />
+                <div className="min-w-0 flex-1">
+                  <h2 className="font-semibold text-[#29352f]">{property.title}</h2>
+                  <p className="mt-1 text-sm text-[#65716a]">
+                    {property.propertyType || property.category} · {property.city}
+                  </p>
+                  <p className="mt-2 text-sm font-semibold text-[#34433b]">
+                    ₹{Number(property.price).toLocaleString("en-IN")} / {property.priceBasis || "night"}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  disabled={busyId === property._id}
+                  onClick={() => removeMarketplaceListing(property)}
+                  className="inline-flex items-center justify-center gap-2 rounded-full border border-[#e5c6bb] px-4 py-2.5 text-sm font-semibold text-[#8d392c] transition hover:bg-[#fff1ed] disabled:opacity-50"
+                >
+                  <Trash2 size={15} />
+                  {busyId === property._id ? "Removing…" : "Remove from marketplace"}
+                </button>
               </article>
             ))}
           </div>

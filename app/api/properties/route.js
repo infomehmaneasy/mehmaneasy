@@ -159,18 +159,15 @@ export async function POST(req) {
     const supabase = getSupabaseForRequest(req);
     const user = await getAuthenticatedSupabaseUser(req, supabase);
     if (!user) return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
-    if (!user.email_confirmed_at) {
-      return NextResponse.json({ error: "Verify your email before listing a stay." }, { status: 403 });
-    }
 
     const { data: profile, error: profileError } = await supabase
       .from("profiles")
-      .select("role,verified")
+      .select("role")
       .eq("id", user.id)
       .single();
     if (profileError) throw profileError;
-    if (profile.role !== "host" || !profile.verified) {
-      return NextResponse.json({ error: "A verified host account is required to list a stay." }, { status: 403 });
+    if (profile.role !== "host" && profile.role !== "admin") {
+      return NextResponse.json({ error: "A host account is required to list a stay." }, { status: 403 });
     }
 
     const payload = await req.json();

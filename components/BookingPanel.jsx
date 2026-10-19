@@ -26,7 +26,7 @@ function money(value) {
 }
 
 export default function BookingPanel({ direction, title, emptyTitle, emptyDetail }) {
-  const { user, profile, getAccessToken } = useAuth();
+  const { user, getAccessToken } = useAuth();
   const [bookings, setBookings] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -58,9 +58,9 @@ export default function BookingPanel({ direction, title, emptyTitle, emptyDetail
   }, [direction, getAccessToken, user]);
 
   useEffect(() => {
-    if (profile?.verified) loadBookings();
-    else if (profile) setLoading(false);
-  }, [loadBookings, profile]);
+    if (user) loadBookings();
+    else setLoading(false);
+  }, [loadBookings, user]);
 
   async function updateBooking(booking, action) {
     const confirmation = {

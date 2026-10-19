@@ -9,7 +9,7 @@ import BookingPanel from "@/components/BookingPanel";
 import { useAuth } from "@/context/AuthContext";
 
 export default function DashboardPage() {
-  const { user, profile, loading: authLoading, refreshProfile, setRole, getAccessToken } = useAuth();
+  const { user, profile, profileError, loading: authLoading, refreshProfile, setRole, getAccessToken } = useAuth();
   const [listings, setListings] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -38,7 +38,7 @@ export default function DashboardPage() {
 
   useEffect(() => {
     if (!authLoading) {
-      if (user && profile?.verified) loadListings();
+      if (user && profile) loadListings();
       else setLoading(false);
     }
   }, [authLoading, user, profile, loadListings]);
@@ -122,25 +122,42 @@ export default function DashboardPage() {
     );
   }
 
-  if (!user || !profile?.verified) {
+  if (!user) {
     return (
       <main className="min-h-screen bg-[#fffdf9] text-[#24302b]">
         <Navbar />
         <section className="mx-auto max-w-lg px-5 py-40 text-center">
-          <h1 className="text-2xl font-semibold">
-            {!user ? "Log in to continue" : "Verify your account"}
-          </h1>
+          <h1 className="text-2xl font-semibold">Log in to continue</h1>
           <p className="mt-3 text-sm text-[#65716a]">
-            {!user
-              ? "Sign in to manage your Mehmaan Easy listings."
-              : "Verify your email before managing host listings."}
+            Sign in to manage your Mehmaan Easy listings.
           </p>
           <Link
-            href={!user ? "/login" : "/verify"}
+            href="/login"
             className="mt-6 inline-flex rounded-full bg-[#20372f] px-5 py-3 text-sm font-semibold text-white"
           >
-            {!user ? "Log in" : "Verify email"}
+            Log in
           </Link>
+        </section>
+      </main>
+    );
+  }
+
+  if (!profile) {
+    return (
+      <main className="min-h-screen bg-[#fffdf9] text-[#24302b]">
+        <Navbar />
+        <section className="mx-auto max-w-lg px-5 py-40 text-center">
+          <h1 className="text-2xl font-semibold">Your account is still loading</h1>
+          <p className="mt-3 text-sm text-[#65716a]">
+            {profileError || "Refresh the page to retry loading your profile."}
+          </p>
+          <button
+            type="button"
+            onClick={() => refreshProfile().catch((refreshError) => setError(refreshError.message))}
+            className="mt-5 rounded-full bg-[#20372f] px-5 py-3 text-sm font-semibold text-white"
+          >
+            Retry
+          </button>
         </section>
       </main>
     );

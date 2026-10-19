@@ -11,6 +11,7 @@ export async function PATCH(req, { params }) {
     if (context.error) {
       return NextResponse.json({ error: context.error }, { status: context.status });
     }
+
     if (!UUID_PATTERN.test(params.id)) {
       return NextResponse.json({ error: "Invalid property ID." }, { status: 400 });
     }
@@ -45,5 +46,32 @@ export async function PATCH(req, { params }) {
   } catch (error) {
     console.error("Error reviewing Supabase property:", error);
     return NextResponse.json({ error: "Unable to update the property review." }, { status: 500 });
+  }
+}
+
+export async function DELETE(req, { params }) {
+  try {
+    const context = await getAdminSupabaseContext(req);
+    if (context.error) {
+      return NextResponse.json({ error: context.error }, { status: context.status });
+    }
+    if (!UUID_PATTERN.test(params.id)) {
+      return NextResponse.json({ error: "Invalid property ID." }, { status: 400 });
+    }
+
+    const { data: property, error } = await context.supabase
+      .from("properties")
+      .update({ status: "inactive" })
+      .eq("id", params.id)
+      .eq("verificationStatus", "approved")
+      .select("id")
+      .maybeSingle();
+    if (error) throw error;
+    if (!property) return NextResponse.json({ error: "Active marketplace listing not found." }, { status: 404 });
+
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    console.error("Error removing Supabase marketplace property:", error);
+    return NextResponse.json({ error: "Unable to remove the property from the marketplace." }, { status: 500 });
   }
 }

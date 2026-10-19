@@ -5,7 +5,7 @@ import { useEffect, useState } from "react";
 
 const letters = "Mehmaan".split("");
 
-export default function LoadingScreen({ onDone, minDuration = 1800 }) {
+export default function LoadingScreen({ onDone, minDuration = 600 }) {
   const [visible, setVisible] = useState(true);
 
   useEffect(() => {

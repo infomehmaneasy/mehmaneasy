@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useCallback, useContext, useEffect, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
 import { supabase, isSupabaseConfigured } from "@/lib/supabase";
 
 const AuthContext = createContext(null);
@@ -8,19 +8,21 @@ const AuthContext = createContext(null);
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [profile, setProfile] = useState(null);
+  const [profileError, setProfileError] = useState("");
   const [loading, setLoading] = useState(true);
+  const profileRequest = useRef(0);
+  const profileUserId = useRef(null);
 
   const fetchProfile = useCallback(async (session) => {
     if (!session?.access_token) return null;
-    const response = await fetch("/api/auth/profile", {
-      headers: { Authorization: `Bearer ${session.access_token}` },
-    });
-    if (!response.ok) {
-      const data = await response.json();
-      throw new Error(data.error || "Unable to load your profile.");
-    }
-    const data = await response.json();
-    return data.profile;
+    const { data, error } = await supabase
+      .from("profiles")
+      .select("*")
+      .eq("id", session.user.id)
+      .maybeSingle();
+    if (error) throw error;
+    if (!data) throw new Error("User profile not found.");
+    return { ...data, verified: Boolean(session.user.email_confirmed_at) };
   }, []);
 
   const getAccessToken = useCallback(async () => {
@@ -38,35 +40,39 @@ export function AuthProvider({ children }) {
     }
 
     let mounted = true;
-    supabase.auth.getSession().then(async ({ data, error }) => {
-      if (error) console.error("Unable to restore Supabase session:", error.message);
-      const session = data?.session;
-      if (mounted) {
-        setUser(session?.user || null);
-        try {
-          setProfile(session ? await fetchProfile(session) : null);
-        } catch (profileError) {
-          console.error("Unable to load Supabase profile:", profileError);
-        }
-        setLoading(false);
-      }
-    });
-
-    const { data: subscription } = supabase.auth.onAuthStateChange((_event, session) => {
+    const { data: subscription } = supabase.auth.onAuthStateChange((event, session) => {
+      const requestId = ++profileRequest.current;
       setUser(session?.user || null);
       if (!session) {
+        profileUserId.current = null;
         setProfile(null);
+        setProfileError("");
+        setLoading(false);
+        return;
+      }
+      if (profileUserId.current !== session.user.id) {
+        setProfile(null);
+        setProfileError("");
+        setLoading(true);
+      } else if (event === "TOKEN_REFRESHED") {
         setLoading(false);
         return;
       }
       queueMicrotask(async () => {
         try {
           const nextProfile = await fetchProfile(session);
-          if (mounted) setProfile(nextProfile);
+          if (mounted && requestId === profileRequest.current) {
+            profileUserId.current = session.user.id;
+            setProfile(nextProfile);
+            setProfileError("");
+          }
         } catch (profileError) {
           console.error("Unable to load Supabase profile:", profileError);
+          if (mounted && requestId === profileRequest.current) {
+            setProfileError(profileError.message || "Unable to load your account profile.");
+          }
         } finally {
-          if (mounted) setLoading(false);
+          if (mounted && requestId === profileRequest.current) setLoading(false);
         }
       });
     });
@@ -95,7 +101,7 @@ export function AuthProvider({ children }) {
     });
     if (error) throw error;
     if (!data.user) throw new Error("Unable to create your account.");
-    return { email: data.user.email };
+    return { email: data.user.email, session: data.session };
   }
 
   async function login(email, password) {
@@ -126,7 +132,17 @@ export function AuthProvider({ children }) {
     const { data, error } = await supabase.auth.getSession();
     if (error) throw error;
     setUser(data.session?.user || null);
-    setProfile(await fetchProfile(data.session));
+    setProfileError("");
+    try {
+      const nextProfile = await fetchProfile(data.session);
+      setProfile(nextProfile);
+      profileUserId.current = data.session?.user?.id || null;
+    } catch (error) {
+      setProfileError(error.message || "Unable to load your account profile.");
+      setLoading(false);
+      throw error;
+    }
+    setLoading(false);
   }
 
   const setRole = useCallback(async (role) => {
@@ -142,6 +158,7 @@ export function AuthProvider({ children }) {
       value={{
         user,
         profile,
+        profileError,
         loading,
         registerWithEmail,
         login,

@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import Link from "next/link";
 import { motion } from "framer-motion";
 import { supabase } from "@/lib/supabase";
 import Navbar from "@/components/Navbar";
@@ -38,7 +39,7 @@ const AMENITIES = [
 import { Suspense } from "react";
 
 function PostPropertyForm() {
-  const { user, profile, getAccessToken } = useAuth();
+  const { user, profile, profileError, loading: authLoading, getAccessToken, setRole, refreshProfile } = useAuth();
   const router = useRouter();
   const editId = useSearchParams().get("edit");
 
@@ -64,9 +65,33 @@ function PostPropertyForm() {
     isFeatured: false,
   });
   const [files, setFiles] = useState([]);
+  const [filePreviews, setFilePreviews] = useState([]);
   const [existingImages, setExistingImages] = useState([]);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
+  const [hostReady, setHostReady] = useState(false);
+  const roleSetupUser = useRef("");
+
+  useEffect(() => {
+    const previews = files.map((file) => URL.createObjectURL(file));
+    setFilePreviews(previews);
+    return () => previews.forEach((preview) => URL.revokeObjectURL(preview));
+  }, [files]);
+
+  useEffect(() => {
+    if (authLoading || !user || !profile) return;
+    if (profile.role === "host" || profile.role === "admin") {
+      setHostReady(true);
+      return;
+    }
+    if (roleSetupUser.current === user.id) return;
+    roleSetupUser.current = user.id;
+    setRole("host")
+      .then(() => setHostReady(true))
+      .catch((roleError) => {
+        setError(roleError.message || "Unable to set up host access.");
+      });
+  }, [authLoading, profile, setRole, user]);
 
   useEffect(() => {
     if (!editId || !user) return;
@@ -131,8 +156,8 @@ function PostPropertyForm() {
   async function handleSubmit(e) {
     e.preventDefault();
     setError("");
-    if (!user || !profile?.verified) {
-      setError("Please verify your account before posting a property.");
+    if (!user || !profile || !hostReady) {
+      setError("Sign in to your host account before posting a property.");
       return;
     }
     if (existingImages.length + files.length < 3) {
@@ -196,6 +221,73 @@ function PostPropertyForm() {
     }
   }
 
+
+  if (authLoading) {
+    return (
+      <main className="min-h-screen">
+        <Navbar />
+        <p className="mx-auto max-w-lg px-5 py-40 text-center text-sm text-cream/65">
+          Checking your account…
+        </p>
+      </main>
+    );
+  }
+
+  if (!user) {
+    const next = `/post${editId ? `?edit=${encodeURIComponent(editId)}` : ""}`;
+    return (
+      <main className="min-h-screen">
+        <Navbar />
+        <section className="mx-auto max-w-lg px-5 py-40 text-center">
+          <p className="mb-2 text-[11px] font-600 uppercase tracking-[0.3em] text-gold">Become a host</p>
+          <h1 className="font-display text-3xl font-800 text-cream">Sign in before you start</h1>
+          <p className="mt-3 text-sm leading-6 text-cream/60">
+            Sign in or create an account first. We’ll bring you straight back here to list your stay.
+          </p>
+          <div className="mt-7 flex flex-wrap justify-center gap-3">
+            <Link
+              href={`/login?next=${encodeURIComponent(next)}`}
+              className="rounded-full bg-gold px-6 py-3 text-sm font-700 text-ink hover:bg-gold-soft"
+            >
+              Log in
+            </Link>
+            <Link
+              href={`/register?next=${encodeURIComponent(next)}`}
+              className="rounded-full border border-ink-line px-6 py-3 text-sm font-600 text-cream hover:border-gold"
+            >
+              Create account
+            </Link>
+          </div>
+        </section>
+      </main>
+    );
+  }
+
+  if (!profile || !hostReady) {
+    return (
+      <main className="min-h-screen">
+        <Navbar />
+        <section className="mx-auto max-w-lg px-5 py-40 text-center text-sm text-cream/65">
+          <p>{error || profileError || "Setting up your host account…"}</p>
+          {profileError && (
+            <button
+              type="button"
+              onClick={async () => {
+                try {
+                  await refreshProfile();
+                } catch (refreshError) {
+                  setError(refreshError.message || "Unable to load your account profile.");
+                }
+              }}
+              className="mt-4 rounded-full border border-ink-line px-4 py-2 text-cream hover:border-gold"
+            >
+              Retry
+            </button>
+          )}
+        </section>
+      </main>
+    );
+  }
 
   return (
     <main className="min-h-screen">
@@ -372,23 +464,77 @@ function PostPropertyForm() {
               )}
             </div>
 
-            <Field label="Images">
+            <div className="flex flex-col gap-1.5 text-xs text-cream/60">
+              <label htmlFor="property-images">Property photos</label>
               <input
+                id="property-images"
                 type="file"
                 multiple
                 accept="image/*"
-                onChange={(e) => setFiles(Array.from(e.target.files || []))}
+                onChange={(event) => {
+                  const selected = Array.from(event.target.files || []);
+                  event.target.value = "";
+                  const invalid = selected.find(
+                    (file) =>
+                      !["image/jpeg", "image/png", "image/webp", "image/avif"].includes(file.type) ||
+                      file.size > 10 * 1024 * 1024
+                  );
+                  const available = Math.max(0, 30 - existingImages.length - files.length);
+                  const additions = selected
+                    .filter(
+                      (file) =>
+                        ["image/jpeg", "image/png", "image/webp", "image/avif"].includes(file.type) &&
+                        file.size <= 10 * 1024 * 1024
+                    )
+                    .slice(0, available);
+                  setFiles((current) => [...current, ...additions]);
+                  if (invalid) {
+                    setError("Photos must be JPG, PNG, WebP, or AVIF files up to 10 MB each.");
+                  } else if (selected.length > available) {
+                    setError("A listing can have up to 30 photos.");
+                  } else if (additions.length) {
+                    setError("");
+                  }
+                }}
                 className="text-sm text-cream/70"
               />
-              <span className="text-xs text-cream/45">At least three images are required.</span>
-              {existingImages.length > 0 && (
-                <div className="flex gap-2 mt-2">
+              <span className="text-xs text-cream/45">
+                {existingImages.length + files.length} selected. Add photos in multiple rounds; at least three are required.
+              </span>
+              {existingImages.length + files.length < 3 && (
+                <span className="text-xs text-gold-soft">Select at least 3 photos to continue.</span>
+              )}
+              {(existingImages.length > 0 || files.length > 0) && (
+                <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-3">
                   {existingImages.map((img, i) => (
-                    <img key={i} src={img} className="w-14 h-14 rounded-lg object-cover" alt="" />
+                    <div key={`${img}-${i}`} className="relative overflow-hidden rounded-lg">
+                      <img src={img} className="h-24 w-full object-cover" alt={`Property photo ${i + 1}`} />
+                      <button
+                        type="button"
+                        onClick={() => setExistingImages((images) => images.filter((_, index) => index !== i))}
+                        className="absolute right-1 top-1 rounded-full bg-black/75 px-2 py-1 text-[10px] text-white"
+                        aria-label={`Remove property photo ${i + 1}`}
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  ))}
+                  {files.map((file, i) => (
+                    <div key={`${file.name}-${file.lastModified}-${i}`} className="relative overflow-hidden rounded-lg bg-ink-panel">
+                      <img src={filePreviews[i]} className="h-24 w-full object-cover" alt={file.name} />
+                      <button
+                        type="button"
+                        onClick={() => setFiles((selected) => selected.filter((_, index) => index !== i))}
+                        className="absolute right-1 top-1 rounded-full bg-black/75 px-2 py-1 text-[10px] text-white"
+                        aria-label={`Remove ${file.name}`}
+                      >
+                        Remove
+                      </button>
+                    </div>
                   ))}
                 </div>
               )}
-            </Field>
+            </div>
 
             {error && <p className="text-xs text-red-400">{error}</p>}
 

@@ -10,13 +10,16 @@ export async function GET(req) {
       return NextResponse.json({ error: context.error }, { status: context.status });
     }
 
-    const { data: properties, error } = await context.supabase
+    const scope = new URL(req.url).searchParams.get("scope");
+    let query = context.supabase
       .from("properties")
       .select("*")
-      .in("status", ["pending_review", "active"])
-      .eq("verificationStatus", "pending")
-      .order("createdAt", { ascending: true })
-      .limit(100);
+      .order("createdAt", { ascending: scope !== "marketplace" });
+    query =
+      scope === "marketplace"
+        ? query.eq("status", "active").eq("verificationStatus", "approved")
+        : query.in("status", ["pending_review", "active"]).eq("verificationStatus", "pending");
+    const { data: properties, error } = await query.limit(100);
     if (error) throw error;
 
     const ids = (properties || []).map((property) => property.id);

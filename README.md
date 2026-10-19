@@ -6,7 +6,7 @@ Mehmaan Easy is an India-focused curated-stays marketplace. The current app incl
 
 ## Backend
 
-- **Supabase Auth** handles email/password registration, email confirmation, Google sign-in, and sessions.
+- **Supabase Auth** handles email/password registration, Google sign-in, and sessions. Email confirmation is disabled for the intended low-friction test flow; Google sign-in remains provider-verified.
 - **Supabase Postgres** stores profiles, listings, private property details, and support enquiries.
 - **Supabase Storage** stores listing photos in the public `property-images` bucket. Uploads are restricted to a verified host's own folder.
 - **Cloudinary is not required** for the current listing-photo workflow; it can be added later if image transformations/CDN features are needed.
@@ -20,8 +20,9 @@ The application uses the public Supabase publishable key together with Postgres 
    - [`supabase/migrations/202610190002_booking_requests.sql`](./supabase/migrations/202610190002_booking_requests.sql) enables payment-free booking requests and their role policies.
    - [`supabase/migrations/202610190003_booking_contact_privacy.sql`](./supabase/migrations/202610190003_booking_contact_privacy.sql) restricts participant contact details until a booking is confirmed.
    - [`supabase/migrations/202610190004_admin_email_allowlist.sql`](./supabase/migrations/202610190004_admin_email_allowlist.sql) grants admin access only to the verified `info.mehmaneasy@gmail.com` account.
-2. In **Authentication → URL Configuration**, set the Site URL to `https://mehmaneasy-three.vercel.app` and add `http://localhost:3000/**` and `https://mehmaneasy-three.vercel.app/**` to the redirect allowlist. Email verification returns guests to `/dashboard`; Google OAuth returns to `/auth/callback`.
-3. In **Authentication → Providers**, keep Email enabled and configure Google with a Google Cloud **Web application** OAuth client. Add Supabase's Google callback URL as an authorized redirect URI in Google Cloud, then put the client ID and client secret into Supabase's Google provider settings. Never add the client secret to `.env.local`, frontend code, or a `NEXT_PUBLIC_*` variable. The current Google consent screen is in **Testing**; only listed test users can use Google sign-in until the app is published and any required verification is completed.
+   - [`supabase/migrations/202610190005_email_auth_and_host_access.sql`](./supabase/migrations/202610190005_email_auth_and_host_access.sql) allows authenticated accounts to host and book without email confirmation, while preserving Google-only admin promotion.
+2. In **Authentication → URL Configuration**, set the Site URL to `https://mehmaneasy-three.vercel.app` and add `http://localhost:3000/**` and `https://mehmaneasy-three.vercel.app/**` to the redirect allowlist. Google OAuth returns to `/auth/callback`.
+3. In **Authentication → Sign In / Providers**, keep Email enabled and turn **Confirm email** off for this test phase. This lets email/password sign-up create a usable session immediately; it does not prove mailbox ownership. Configure Google with a Google Cloud **Web application** OAuth client. Add Supabase's Google callback URL as an authorized redirect URI in Google Cloud, then put the client ID and client secret into Supabase's Google provider settings. Never add the client secret to `.env.local`, frontend code, or a `NEXT_PUBLIC_*` variable. The current Google consent screen is in **Testing**; only listed test users can use Google sign-in until the app is published and any required verification is completed.
 4. Copy `.env.local.example` to `.env.local` if you do not already have one. Set:
    - `NEXT_PUBLIC_SUPABASE_URL`
    - `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`
@@ -29,8 +30,8 @@ The application uses the public Supabase publishable key together with Postgres 
    - `GMAIL_EMAIL` and `GMAIL_APP_PASSWORD` if support-question email notifications are desired
    - `NEXT_PUBLIC_APP_URL`
 5. The migration creates the tables, RLS policies, role/verification functions, and the Storage bucket/policies. It contains no service-role key.
-6. Create and verify `info.mehmaneasy@gmail.com`. Migration `202610190004_admin_email_allowlist.sql` automatically grants this exact verified account the `admin` role and protects it from being changed by the guest/host role flow.
-7. For reliable verification email delivery, configure an SMTP provider in **Authentication → Emails → SMTP Settings**. The project's `GMAIL_EMAIL` and `GMAIL_APP_PASSWORD` variables are for app-side support email and do not configure Supabase Auth's SMTP sender.
+6. Sign in to the admin account using Google. The exact `info.mehmaneasy@gmail.com` account receives `admin` only when Supabase confirms its Google identity; password-only sign-up cannot claim the admin role.
+7. SMTP is not needed for email/password sign-up while **Confirm email** is off. The project's `GMAIL_EMAIL` and `GMAIL_APP_PASSWORD` variables are for app-side support email and do not configure Supabase Auth's SMTP sender.
 
 ## Local development
 
@@ -48,7 +49,7 @@ npm run start
 
 ## Host, moderation, and payment-free booking workflow
 
-1. Register as a host using email confirmation or Google sign-in.
+1. Register as a host using email/password or Google sign-in, then sign in.
 2. Submit a stay with at least three photos.
 3. An administrator signs in and opens `/admin` to approve or reject the listing with review notes.
 4. Only approved and active stays are shown in public discovery.
@@ -64,7 +65,7 @@ Public property data does not contain the full address, postal code, host email,
 - Gateway checkout, tax/platform-fee calculation, invoices, refunds, payouts, external calendar sync, reviews, and automated booking emails/SMS/WhatsApp are not implemented. Booking requests and manual host confirmations are available for client testing, but they are not paid reservations and the site must not be treated as collecting money.
 - Google sign-in is restricted to the OAuth consent screen's listed test users while its publishing status is **Testing**. Add each tester's email there or complete Google's app/domain verification before opening Google sign-in to all users.
 - Legacy Firebase/MongoDB accounts and property data have **not** been migrated. Existing users must create/confirm a Supabase account. Existing property data needs a deliberate export/import after its source database is reachable; do not assume the old MongoDB listings are present in Supabase.
-- Supabase email/password registration requires email confirmation. Until custom SMTP is configured, verification messages use Supabase's default email service and its delivery limits.
+- Disabling email confirmation makes account creation simpler for testing but does not verify mailbox ownership. Re-enable it before production if email ownership is a trust requirement, and use a transactional email provider with a domain you control.
 - The `functions/` directory and Firebase project files are legacy; the Next.js web app no longer uses Firebase for sign-in, listing data, or image uploads.
 
 ## Key safety

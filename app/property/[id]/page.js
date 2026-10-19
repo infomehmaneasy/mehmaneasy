@@ -121,10 +121,6 @@ export default function PropertyDetailPage() {
       window.location.assign(`/login?next=${encodeURIComponent(`/property/${id}`)}`);
       return;
     }
-    if (!profile?.verified) {
-      setBookingError("Verify your email before requesting this stay.");
-      return;
-    }
     if (!datesAreFuture) {
       setBookingError("Choose valid future check-in and check-out dates.");
       return;
@@ -449,7 +445,7 @@ export default function PropertyDetailPage() {
                   {user ? (
                     <button
                       type="submit"
-                      disabled={requestingBooking || !datesAreFuture || !profile?.verified}
+                      disabled={requestingBooking || !datesAreFuture}
                       className="w-full rounded-full bg-[#bd604a] px-5 py-3 text-sm font-semibold text-white transition hover:bg-[#a94d39] disabled:cursor-not-allowed disabled:opacity-50"
                     >
                       {requestingBooking ? "Sending request…" : "Request to book · no payment"}
@@ -459,7 +455,7 @@ export default function PropertyDetailPage() {
                       href={`/login?next=${encodeURIComponent(`/property/${id}`)}`}
                       className="block w-full rounded-full bg-[#bd604a] px-5 py-3 text-center text-sm font-semibold text-white transition hover:bg-[#a94d39]"
                     >
-                      Sign in to request this stay
+                      Request this stay
                     </Link>
                   )}
                   <p className="text-center text-xs leading-5 text-[#758078]">
