@@ -6,6 +6,13 @@ import { motion } from "framer-motion";
 import Navbar from "@/components/Navbar";
 import { useAuth } from "@/context/AuthContext";
 
+function getSafeNextPath() {
+  const next = new URLSearchParams(window.location.search).get("next");
+  return next?.startsWith("/") && !next.startsWith("//") && !next.includes("\\")
+    ? next
+    : "/dashboard";
+}
+
 export default function LoginPage() {
   const { login, loginWithGoogle } = useAuth();
   const router = useRouter();
@@ -20,7 +27,7 @@ export default function LoginPage() {
     setSubmitting(true);
     try {
       await login(email, password);
-      router.push("/dashboard");
+      router.push(getSafeNextPath());
     } catch (loginError) {
       setError(loginError.message || "Login failed.");
     } finally {
@@ -32,8 +39,10 @@ export default function LoginPage() {
     setError("");
     setSubmitting(true);
     try {
+      window.localStorage.setItem("pendingGoogleNext", getSafeNextPath());
       await loginWithGoogle();
     } catch (googleError) {
+      window.localStorage.removeItem("pendingGoogleNext");
       setError(googleError.message || "Google sign-in failed.");
       setSubmitting(false);
     }

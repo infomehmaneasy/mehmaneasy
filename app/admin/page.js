@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { BadgeCheck, Clock3, ShieldAlert } from "lucide-react";
 import Navbar from "@/components/Navbar";
+import BookingPanel from "@/components/BookingPanel";
 import { useAuth } from "@/context/AuthContext";
 
 export default function AdminPage() {
@@ -130,6 +131,7 @@ export default function AdminPage() {
           {[
             ["properties", `Property reviews (${properties.length})`],
             ["enquiries", `Guest questions (${enquiries.length})`],
+            ["bookings", "Bookings"],
           ].map(([tab, label]) => (
             <button
               key={tab}
@@ -172,6 +174,13 @@ export default function AdminPage() {
           <EmptyState title="Review queue is clear" detail="No pending property reviews." />
         ) : user && !error && activeTab === "enquiries" && enquiries.length === 0 ? (
           <EmptyState title="No guest questions" detail="New pre-booking questions appear here." />
+        ) : activeTab === "bookings" ? (
+          <BookingPanel
+            direction="admin"
+            title="Booking oversight"
+            emptyTitle="No booking requests"
+            emptyDetail="Guest requests and host decisions will appear here."
+          />
         ) : activeTab === "properties" ? (
           <div className="mt-10 grid gap-5">
             {properties.map((property) => (

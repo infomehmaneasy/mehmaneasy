@@ -5,6 +5,7 @@ import Link from "next/link";
 import { motion } from "framer-motion";
 import { CheckCircle2, Clock3, Pencil, Plus, Trash2 } from "lucide-react";
 import Navbar from "@/components/Navbar";
+import BookingPanel from "@/components/BookingPanel";
 import { useAuth } from "@/context/AuthContext";
 
 export default function DashboardPage() {
@@ -145,25 +146,54 @@ export default function DashboardPage() {
     );
   }
 
+  if (profile.role === "admin") {
+    return (
+      <main className="min-h-screen bg-[#fffdf9] text-[#24302b]">
+        <Navbar />
+        <section className="mx-auto max-w-[1200px] px-5 pb-20 pt-32 sm:px-8">
+          <h1 className="text-3xl font-semibold">Welcome, {profile.name?.split(" ")[0] || "admin"}.</h1>
+          <p className="mt-2 text-sm text-[#65716a]">Your account has guest and marketplace administrator access.</p>
+          <BookingPanel
+            direction="guest"
+            title="Your trips"
+            emptyTitle="No trips yet"
+            emptyDetail="Booking requests and confirmed stays will appear here."
+          />
+          <Link href="/admin" className="mt-8 inline-flex rounded-full bg-[#20372f] px-5 py-3 text-sm font-semibold text-white">
+            Open admin workspace
+          </Link>
+        </section>
+      </main>
+    );
+  }
+
   if (profile.role !== "host") {
     return (
       <main className="min-h-screen bg-[#fffdf9] text-[#24302b]">
         <Navbar />
-        <section className="mx-auto max-w-xl px-5 py-40 text-center">
-          <h1 className="text-3xl font-semibold">Welcome to Mehmaan Easy</h1>
-          <p className="mt-3 text-sm leading-6 text-[#65716a]">
-            This is your guest account. If you own a property, switch on host
-            access to prepare and submit a stay for verification.
-          </p>
+        <section className="mx-auto max-w-[1200px] px-5 pb-20 pt-32 sm:px-8">
+          <div className="flex flex-wrap items-end justify-between gap-5">
+            <div>
+              <p className="mb-2 text-xs font-semibold uppercase tracking-[0.16em] text-[#bd604a]">Guest dashboard</p>
+              <h1 className="text-3xl font-semibold">Welcome, {profile.name?.split(" ")[0] || "traveller"}.</h1>
+              <p className="mt-2 text-sm text-[#65716a]">Manage booking requests and your upcoming stays.</p>
+            </div>
+            <button
+              type="button"
+              disabled={upgrading}
+              onClick={becomeHost}
+              className="rounded-full border border-[#d8d9d2] px-5 py-3 text-sm font-semibold text-[#34433b] disabled:opacity-50"
+            >
+              {upgrading ? "Setting up…" : "Become a host"}
+            </button>
+          </div>
           {error && <p role="alert" className="mt-4 text-sm text-[#8d392c]">{error}</p>}
-          <button
-            type="button"
-            disabled={upgrading}
-            onClick={becomeHost}
-            className="mt-6 rounded-full bg-[#20372f] px-6 py-3 text-sm font-semibold text-white disabled:opacity-50"
-          >
-            {upgrading ? "Setting up your host account…" : "Become a host"}
-          </button>
+          <BookingPanel
+            direction="guest"
+            title="Your trips"
+            emptyTitle="No trips yet"
+            emptyDetail="When you request a stay, you can track the host response here."
+          />
         </section>
       </main>
     );
@@ -194,6 +224,19 @@ export default function DashboardPage() {
             <Plus size={16} /> Add a stay
           </Link>
         </div>
+
+        <BookingPanel
+          direction="guest"
+          title="Your trips"
+          emptyTitle="No guest bookings"
+          emptyDetail="Stays you request as a guest will appear here."
+        />
+        <BookingPanel
+          direction="host"
+          title="Guest booking requests"
+          emptyTitle="No booking requests"
+          emptyDetail="Guest requests for your approved nightly stays will appear here."
+        />
 
         <div className="mt-8 grid gap-4 sm:grid-cols-3">
           <SummaryCard label="Total listings" value={listings.length} />

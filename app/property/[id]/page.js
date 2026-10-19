@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import { motion } from "framer-motion";
+import Link from "next/link";
 import {
   BadgeCheck,
   Bath,
@@ -15,9 +16,11 @@ import {
 } from "lucide-react";
 import Navbar from "@/components/Navbar";
 import EnquiryModal from "@/components/EnquiryModal";
+import { useAuth } from "@/context/AuthContext";
 
 export default function PropertyDetailPage() {
   const { id } = useParams();
+  const { user, profile, getAccessToken } = useAuth();
   const [property, setProperty] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -26,6 +29,14 @@ export default function PropertyDetailPage() {
   const [checkIn, setCheckIn] = useState("");
   const [checkOut, setCheckOut] = useState("");
   const [guests, setGuests] = useState(2);
+  const [guestPhone, setGuestPhone] = useState("");
+  const [requestingBooking, setRequestingBooking] = useState(false);
+  const [bookingError, setBookingError] = useState("");
+  const [bookingResult, setBookingResult] = useState(null);
+
+  useEffect(() => {
+    if (profile?.phone) setGuestPhone(profile.phone);
+  }, [profile?.phone]);
 
   useEffect(() => {
     let active = true;
@@ -82,7 +93,10 @@ export default function PropertyDetailPage() {
   const priceBasis =
     property.priceBasis || (property.category === "Rental" ? "month" : "listing");
   const tripDatesValid =
-    !checkIn || !checkOut || new Date(checkOut) > new Date(checkIn);
+    (!checkIn && !checkOut) ||
+    (!!checkIn && !!checkOut && new Date(checkOut) > new Date(checkIn));
+  const today = new Date().toISOString().slice(0, 10);
+  const datesAreFuture = !!checkIn && !!checkOut && checkIn >= today && tripDatesValid;
   const nights =
     checkIn && checkOut && tripDatesValid
       ? (Date.parse(`${checkOut}T00:00:00Z`) - Date.parse(`${checkIn}T00:00:00Z`)) /
@@ -92,12 +106,59 @@ export default function PropertyDetailPage() {
   const cleaningFee = Number(property.cleaningFee) || 0;
   const accommodationTotal = nights * nightlyRate;
   const estimatedTotal = accommodationTotal + cleaningFee;
+  const canRequestBooking = priceBasis === "night";
   const stayMessage = [
     checkIn && checkOut
       ? `I am interested in ${checkIn} to ${checkOut}`
       : "I would like to ask about availability",
     `${guests} ${guests === 1 ? "guest" : "guests"}`,
   ].join(". ");
+
+  async function submitBookingRequest(event) {
+    event.preventDefault();
+    setBookingError("");
+    if (!user) {
+      window.location.assign(`/login?next=${encodeURIComponent(`/property/${id}`)}`);
+      return;
+    }
+    if (!profile?.verified) {
+      setBookingError("Verify your email before requesting this stay.");
+      return;
+    }
+    if (!datesAreFuture) {
+      setBookingError("Choose valid future check-in and check-out dates.");
+      return;
+    }
+    if (!canRequestBooking) {
+      setBookingError("This listing needs a nightly rate before an online request can be created. Ask support for a quote.");
+      return;
+    }
+    setRequestingBooking(true);
+    try {
+      const token = await getAccessToken();
+      const response = await fetch("/api/bookings", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          propertyId: property.id || property._id,
+          checkIn,
+          checkOut,
+          guests,
+          phone: guestPhone,
+        }),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "Unable to request this stay.");
+      setBookingResult(data.booking);
+    } catch (requestError) {
+      setBookingError(requestError.message || "Unable to request this stay.");
+    } finally {
+      setRequestingBooking(false);
+    }
+  }
 
   return (
     <main className="min-h-screen bg-[#fffdf9] text-[#24302b]">
@@ -280,6 +341,7 @@ export default function PropertyDetailPage() {
                   <span className="flex items-center gap-1"><CalendarDays size={13} /> Check in</span>
                   <input
                     type="date"
+                    min={today}
                     value={checkIn}
                     onChange={(event) => setCheckIn(event.target.value)}
                     className="mt-2 w-full bg-transparent text-xs text-[#29352f] outline-none [color-scheme:light]"
@@ -313,6 +375,14 @@ export default function PropertyDetailPage() {
                   Check-out must be after check-in.
                 </p>
               )}
+              {checkIn && checkIn < today && (
+                <p role="alert" className="mt-3 text-xs text-[#a1392d]">
+                  Check-in must be today or later.
+                </p>
+              )}
+              {(checkIn && !checkOut) || (!checkIn && checkOut) ? (
+                <p className="mt-3 text-xs text-[#8b5a18]">Choose both dates to request a stay.</p>
+              ) : null}
               {nights > 0 && priceBasis === "night" && (
                 <div
                   aria-label="Estimated price breakdown"
@@ -360,21 +430,72 @@ export default function PropertyDetailPage() {
                   the price and availability.
                 </p>
               )}
+              {canRequestBooking && !bookingResult && (
+                <form onSubmit={submitBookingRequest} className="mt-4 space-y-2">
+                  <label className="block rounded-xl border border-[#dedfd8] p-3 text-[10px] font-semibold uppercase tracking-wide text-[#65716a]">
+                    Contact phone
+                    <input
+                      type="tel"
+                      required
+                      value={guestPhone}
+                      onChange={(event) => setGuestPhone(event.target.value)}
+                      placeholder="+91 98765 43210"
+                      className="mt-2 w-full bg-transparent text-sm font-normal normal-case text-[#29352f] outline-none"
+                    />
+                  </label>
+                  {bookingError && (
+                    <p role="alert" className="text-xs leading-5 text-[#a1392d]">{bookingError}</p>
+                  )}
+                  {user ? (
+                    <button
+                      type="submit"
+                      disabled={requestingBooking || !datesAreFuture || !profile?.verified}
+                      className="w-full rounded-full bg-[#bd604a] px-5 py-3 text-sm font-semibold text-white transition hover:bg-[#a94d39] disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      {requestingBooking ? "Sending request…" : "Request to book · no payment"}
+                    </button>
+                  ) : (
+                    <Link
+                      href={`/login?next=${encodeURIComponent(`/property/${id}`)}`}
+                      className="block w-full rounded-full bg-[#bd604a] px-5 py-3 text-center text-sm font-semibold text-white transition hover:bg-[#a94d39]"
+                    >
+                      Sign in to request this stay
+                    </Link>
+                  )}
+                  <p className="text-center text-xs leading-5 text-[#758078]">
+                    The host must confirm the request. Nothing is charged online;
+                    if confirmed, payment is arranged directly at check-in.
+                  </p>
+                </form>
+              )}
+              {bookingResult && (
+                <div role="status" className="mt-4 rounded-2xl bg-[#edf5ef] p-4 text-sm text-[#376247]">
+                  <p className="font-semibold">Request sent to the host</p>
+                  <p className="mt-1 text-xs leading-5">
+                    Reference {bookingResult.id.slice(0, 8)} · no payment was collected.
+                    You can check its status in your trips.
+                  </p>
+                  <Link href="/dashboard" className="mt-3 inline-flex text-xs font-semibold underline">
+                    View my trips
+                  </Link>
+                </div>
+              )}
+              {!canRequestBooking && (
+                <p className="mt-4 text-xs leading-5 text-[#758078]">
+                  Booking requests require a nightly rate. Contact support for a quote for this listing.
+                </p>
+              )}
               <button
                 type="button"
                 disabled={!tripDatesValid}
                 onClick={() => setShowEnquiry(true)}
-                className="mt-4 w-full rounded-full bg-[#bd604a] px-5 py-3 text-sm font-semibold text-white transition hover:bg-[#a94d39] disabled:cursor-not-allowed disabled:opacity-50"
+                className="mt-3 w-full rounded-full border border-[#d8d9d2] px-5 py-3 text-sm font-semibold text-[#34433b] transition hover:bg-[#f7f5f1] disabled:cursor-not-allowed disabled:opacity-50"
               >
-                Ask support about this stay
+                Ask Mehmaan Easy support
               </button>
-              <p className="mt-3 text-center text-xs leading-5 text-[#758078]">
-                This sends a question to Mehmaan Easy support, not the host.
-                Booking and payment are not enabled yet.
-              </p>
               <div className="mt-5 flex items-start gap-2 border-t border-[#eeeeea] pt-4 text-xs leading-5 text-[#65716a]">
                 <Heart size={15} className="mt-0.5 shrink-0 text-[#bd604a]" />
-                Dates are requests only; availability is confirmed by support.
+                A booking request does not reserve the dates. The host confirms availability.
               </div>
             </aside>
           </div>

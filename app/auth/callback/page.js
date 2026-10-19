@@ -24,8 +24,16 @@ export default function AuthCallbackPage() {
         if (requestedRole === "guest" || requestedRole === "host") {
           await setRole(requestedRole);
         }
+        const pendingNext = window.localStorage.getItem("pendingGoogleNext");
+        const destination =
+          pendingNext?.startsWith("/") &&
+          !pendingNext.startsWith("//") &&
+          !pendingNext.includes("\\")
+            ? pendingNext
+            : "/dashboard";
         window.localStorage.removeItem("pendingGoogleRole");
-        if (active) router.replace("/dashboard");
+        window.localStorage.removeItem("pendingGoogleNext");
+        if (active) router.replace(destination);
       } catch (finishError) {
         if (active) setError(finishError.message || "Unable to finish creating your profile.");
       }
