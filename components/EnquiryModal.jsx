@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, CheckCircle2 } from "lucide-react";
+import { X, CheckCircle2, MailCheck } from "lucide-react";
 
 
 export default function EnquiryModal({ property, onClose, initialMessage = "" }) {
@@ -14,6 +14,7 @@ export default function EnquiryModal({ property, onClose, initialMessage = "" })
   });
   const [submitting, setSubmitting] = useState(false);
   const [done, setDone] = useState(false);
+  const [notificationSent, setNotificationSent] = useState(false);
   const [error, setError] = useState("");
 
   async function handleSubmit(e) {
@@ -41,8 +42,8 @@ export default function EnquiryModal({ property, onClose, initialMessage = "" })
         throw new Error(data.error || "Failed to submit enquiry.");
       }
       const data = await res.json();
+      setNotificationSent(Boolean(data.notificationSent));
       setDone(true);
-      setError(data.notificationSent ? "" : "Your question was saved, but email notification is unavailable right now.");
     } catch (err) {
       setError(err.message || "Something went wrong sending your enquiry. Please try again.");
     } finally {
@@ -74,21 +75,37 @@ export default function EnquiryModal({ property, onClose, initialMessage = "" })
           </button>
 
           {done ? (
-            <div className="py-8 text-center flex flex-col items-center gap-3">
-              <CheckCircle2 className="text-gold-deep" size={40} />
-              <h3 className="font-display font-700 text-ink text-lg">Enquiry sent</h3>
-              <p className="text-ink/60 text-sm">
-                Your question has been sent to Mehmaan Easy support. Hosts are
-                not contacted before a booking.
+            <motion.div
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="flex flex-col items-center gap-3 py-8 text-center"
+            >
+              <motion.div
+                initial={{ scale: 0.6, rotate: -12 }}
+                animate={{ scale: 1, rotate: 0 }}
+                transition={{ type: "spring", stiffness: 240, damping: 15 }}
+                className="flex h-14 w-14 items-center justify-center rounded-full bg-[#edf5ef] text-[#376247]"
+              >
+                <CheckCircle2 size={32} />
+              </motion.div>
+              <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-[#bd604a]">
+                Support request received
               </p>
-              {error && <p className="mt-2 text-xs text-amber-700">{error}</p>}
+              <h3 className="font-display text-xl font-bold text-[#29352f]">Thank you for reaching out</h3>
+              <p className="max-w-sm text-sm leading-6 text-[#526058]">
+                Your question has been added to the Mehmaan Easy support queue. Our team can follow up using the contact details you provided. The host is not contacted before a booking.
+              </p>
+              <div className="mt-1 flex items-center gap-2 rounded-full bg-[#f7f5f1] px-3 py-2 text-xs font-medium text-[#526058]">
+                <MailCheck size={15} className="text-[#376247]" />
+                {notificationSent ? "Support email notification sent" : "Your request is safely recorded"}
+              </div>
               <button
                 onClick={onClose}
-                className="mt-2 px-5 py-2 rounded-full bg-ink text-gold-soft text-sm font-600"
+                className="mt-2 rounded-full bg-[#20372f] px-6 py-2.5 text-sm font-semibold text-white transition hover:bg-[#2d4a40]"
               >
                 Done
               </button>
-            </div>
+            </motion.div>
           ) : (
             <>
               <p className="text-[10px] uppercase tracking-[0.25em] text-gold-deep font-600">Ask Mehmaan Easy</p>
