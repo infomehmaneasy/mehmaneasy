@@ -9,9 +9,9 @@ const syne = Syne({ subsets: ["latin"], variable: "--font-sora", weight: ["400",
 
 
 export const metadata = {
-  title: "MahmaanEasy- Find your Dream",
+  title: "Mehmaan Easy | Stay Better. Book Easier.",
   description:
-    "Buy, sell, and discover properties near you. EV connects sellers and buyers directly, wherever the journey takes you.",
+    "Discover thoughtful stays across India with Mehmaan Easy. Find a home that feels like yours, and make every trip a little more memorable.",
 };
 
 

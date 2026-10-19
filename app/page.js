@@ -1,656 +1,590 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { motion, AnimatePresence } from "framer-motion";
-import { 
-  ArrowRight, MapPin, Sparkles, Building, Layers, 
-  ArrowUpRight, ShieldCheck, Star, Users, CheckCircle2, ChevronDown, Compass
+import { AnimatePresence, motion } from "framer-motion";
+import {
+  ArrowDown,
+  ArrowRight,
+  ArrowUpRight,
+  BadgeCheck,
+  CalendarDays,
+  ChevronLeft,
+  ChevronRight,
+  Heart,
+  House,
+  MapPin,
+  Search,
+  ShieldCheck,
+  Sparkles,
+  Users,
 } from "lucide-react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import Navbar from "@/components/Navbar";
 import PropertyCard from "@/components/PropertyCard";
-import gsap from "gsap";
-import { ScrollTrigger } from "gsap/ScrollTrigger";
+
+const destinations = [
+  {
+    name: "Goa",
+    detail: "Sun, sand & slow mornings",
+    image:
+      "https://images.unsplash.com/photo-1512343879784-a960bf40e7f2?auto=format&fit=crop&w=900&q=85",
+  },
+  {
+    name: "Jaipur",
+    detail: "Colourful city escapes",
+    image:
+      "https://images.unsplash.com/photo-1599661046827-dacff0c0f09a?auto=format&fit=crop&w=900&q=85",
+  },
+  {
+    name: "Bengaluru",
+    detail: "A greener kind of getaway",
+    image:
+      "https://images.unsplash.com/photo-1596176530529-78163a4f7af2?auto=format&fit=crop&w=900&q=85",
+  },
+  {
+    name: "Mumbai",
+    detail: "Make a weekend of it",
+    image:
+      "https://images.unsplash.com/photo-1570168007204-dfb528c6958f?auto=format&fit=crop&w=900&q=85",
+  },
+];
+
+const tripIdeas = [
+  { label: "A little more luxury", image: "photo-1600607687939-ce8a6c25118c" },
+  { label: "Find your quiet", image: "photo-1449158743715-0a90ebb6d2d8" },
+  { label: "Room for everyone", image: "photo-1600210492486-724fe5c67fb0" },
+];
+
+function Reveal({ children, className = "", delay = 0 }) {
+  return (
+    <motion.div
+      className={className}
+      initial={{ opacity: 0, y: 26 }}
+      whileInView={{ opacity: 1, y: 0 }}
+      viewport={{ once: true, amount: 0.15 }}
+      transition={{ duration: 0.65, delay, ease: [0.22, 1, 0.36, 1] }}
+    >
+      {children}
+    </motion.div>
+  );
+}
 
 export default function HomePage() {
-  const [featuredProperties, setFeaturedProperties] = useState([]);
+  const router = useRouter();
+  const [properties, setProperties] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [activeFaq, setActiveFaq] = useState(null);
-  const [activeTestimonial, setActiveTestimonial] = useState(0);
+  const [loadError, setLoadError] = useState("");
+  const [reloadKey, setReloadKey] = useState(0);
+  const [destination, setDestination] = useState("");
+  const [checkIn, setCheckIn] = useState("");
+  const [checkOut, setCheckOut] = useState("");
+  const [guests, setGuests] = useState(2);
+  const [activeIdea, setActiveIdea] = useState(0);
 
-  // Stats Data
-  const stats = [
-    { value: 500, suffix: "+", label: "Luxury Properties" },
-    { value: 50, suffix: "+", label: "Premium Cities" },
-    { value: 10, suffix: "K+", label: "Happy Clients" },
-    { value: 15, suffix: "+", label: "Years Experience" }
-  ];
-
-  // Categories Data
-  const categories = [
-    { name: "Residential", count: 142, img: "https://images.unsplash.com/photo-1600585154340-be6161a56a0c?w=600&q=80" },
-    { name: "Commercial", count: 38, img: "https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?w=600&q=80" },
-    { name: "Land", count: 19, img: "https://images.unsplash.com/photo-1500382017468-9049fed747ef?w=600&q=80" },
-    { name: "Rental", count: 64, img: "https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?w=600&q=80" }
-  ];
-
-  // Location Highlights
-  const locations = [
-    { city: "Mumbai", listings: 120, img: "https://images.unsplash.com/photo-1570168007204-dfb528c6958f?w=600&q=80" },
-    { city: "Pune", listings: 45, img: "https://images.unsplash.com/photo-1600607687939-ce8a6c25118c?w=600&q=80" },
-    { city: "Delhi NCR", listings: 85, img: "https://images.unsplash.com/photo-1585938338392-50a59970d8ee?w=600&q=80" },
-    { city: "Bangalore", listings: 92, img: "https://images.unsplash.com/photo-1560185127-6a2806647f81?w=600&q=80" }
-  ];
-
-  // Testimonials Data
-  const testimonials = [
-    { quote: "Acquiring our estate through EV was an absolute masterpiece of a journey. No brokers, no hidden overheads, just pure architectural transparency.", name: "Marcus Vane", role: "Penthouse Owner" },
-    { quote: "Selling my beachfront sanctuary directly to an verified buyer saved weeks of unnecessary negotiations. A truly premier experience.", name: "Elena Rostova", role: "Villa Seller" },
-    { quote: "The curation standards here are unmatched. Every single listing tells a story of refined luxury and immaculate attention to details.", name: "Julian Sterling", role: "Real Estate Investor" }
-  ];
-
-  // FAQ Data
-  const faqs = [
-    { q: "How does the direct buyer-seller connection work?", a: "EV connects verified buyers directly with property owners. Once you enquire about a listing, you deal directly with the seller. We charge no commission or middleman fees." },
-    { q: "Are all luxury properties verified?", a: "Yes. Every listing goes through a comprehensive validation process confirming ownership titles, property coordinates, and exact metadata compliance before appearing live." },
-    { q: "Can I list my property for free?", a: "Yes. We offer complimentary basic listings for verified owners. Premium placements with featured ad tags are available as optional upgrades." },
-    { q: "How do I contact support during acquisition?", a: "Our elite concierge support line is available 24/7 to assist with spatial documentation, direct messaging support, and coordination." }
-  ];
-
-  // Fetch only 2 properties for the homepage
   useEffect(() => {
-    (async () => {
+    let active = true;
+    setLoading(true);
+    setLoadError("");
+
+    async function loadProperties() {
       try {
-        const res = await fetch("/api/properties");
-        if (res.ok) {
-          const data = await res.json();
-          setFeaturedProperties((data.properties || []).slice(0, 2));
+        const response = await fetch("/api/properties");
+        if (!response.ok) {
+          throw new Error(`Property request failed (${response.status})`);
         }
-      } catch (e) {
-        console.error("Error loading properties:", e);
+        const data = await response.json();
+        if (active) {
+          setProperties(
+            (data.properties || [])
+              .filter((property) => property.category === "Rental")
+              .slice(0, 4)
+          );
+        }
+      } catch (error) {
+        console.error("Unable to load featured stays:", error);
+        if (active) {
+          setLoadError("We couldn’t load the stay collection right now.");
+        }
       } finally {
-        setLoading(false);
+        if (active) setLoading(false);
       }
-    })();
-  }, []);
+    }
 
-  useEffect(() => {
-    gsap.registerPlugin(ScrollTrigger);
-
-    // 1. Scroll Progress Bar
-    gsap.to("#scroll-progress", {
-      scaleX: 1,
-      ease: "none",
-      scrollTrigger: {
-        trigger: "body",
-        start: "top top",
-        end: "bottom bottom",
-        scrub: true,
-      }
-    });
-
-    // 2. Pinned Cinematic Zoom Hero Sequence
-    const heroTl = gsap.timeline({
-      scrollTrigger: {
-        trigger: "#cinematic-hero",
-        start: "top top",
-        end: "bottom top",
-        scrub: true,
-        pin: true,
-      }
-    });
-
-    heroTl.to("#hero-media", {
-      scale: 1.15,
-      y: 50,
-      ease: "none"
-    });
-
-    // 3. Stats counters animation
-    stats.forEach((_, i) => {
-      gsap.fromTo(`#stat-val-${i}`, 
-        { textContent: 0 },
-        {
-          textContent: stats[i].value,
-          duration: 2,
-          ease: "power2.out",
-          scrollTrigger: {
-            trigger: "#stats-strip",
-            start: "top 90%",
-            once: true,
-          },
-          snap: { textContent: 1 }
-        }
-      );
-    });
-
-    // 4. Curtain wipe reveal for Section 2
-    gsap.fromTo("#curtain-reveal-img", 
-      { clipPath: "polygon(0 100%, 100% 100%, 100% 100%, 0 100%)" },
-      {
-        clipPath: "polygon(0 0%, 100% 0%, 100% 100%, 0 100%)",
-        ease: "none",
-        scrollTrigger: {
-          trigger: "#section-curtain",
-          start: "top 80%",
-          end: "bottom 40%",
-          scrub: true,
-        }
-      }
-    );
-
-    // 5. Horizontal image parallax panning
-    gsap.fromTo("#pan-image", 
-      { x: "-8%" },
-      {
-        x: "8%",
-        ease: "none",
-        scrollTrigger: {
-          trigger: "#section-pan",
-          start: "top bottom",
-          end: "bottom top",
-          scrub: true,
-        }
-      }
-    );
-
-    // 6. SVG timeline line drawing animation
-    gsap.fromTo("#process-line",
-      { strokeDashoffset: 1000, strokeDasharray: 1000 },
-      {
-        strokeDashoffset: 0,
-        ease: "none",
-        scrollTrigger: {
-          trigger: "#process-section",
-          start: "top 70%",
-          end: "bottom 50%",
-          scrub: true,
-        }
-      }
-    );
-
-    // 7. Parallax for boosted featured ad banner
-    gsap.fromTo("#ad-banner-bg", 
-      { yPercent: -15 },
-      {
-        yPercent: 15,
-        ease: "none",
-        scrollTrigger: {
-          trigger: "#featured-ad-banner",
-          start: "top bottom",
-          end: "bottom top",
-          scrub: true,
-        }
-      }
-    );
-
+    loadProperties();
     return () => {
-      ScrollTrigger.getAll().forEach(trigger => trigger.kill());
+      active = false;
     };
-  }, []);
+  }, [reloadKey]);
+
+  function searchStays(event) {
+    event.preventDefault();
+    const params = new URLSearchParams();
+    if (destination.trim()) params.set("keyword", destination.trim());
+    if (checkIn) params.set("checkIn", checkIn);
+    if (checkOut) params.set("checkOut", checkOut);
+    params.set("guests", String(guests));
+    router.push(`/properties?${params.toString()}`);
+  }
+
+  function searchCity(city) {
+    router.push(`/properties?keyword=${encodeURIComponent(city)}`);
+  }
+
+  const displayedTripIdeas = tripIdeas.map(
+    (_, offset) => tripIdeas[(activeIdea + offset) % tripIdeas.length]
+  );
 
   return (
-    <main className="min-h-screen bg-ink text-cream relative overflow-hidden">
-      {/* Scroll Progress Bar */}
-      <div className="fixed top-0 left-0 right-0 h-[3px] bg-white/10 z-[100] origin-left">
-        <div id="scroll-progress" className="h-full bg-gold w-full scale-x-0 origin-left" />
-      </div>
-
+    <main className="min-h-screen overflow-hidden bg-[#fffdf9] text-[#24302b]">
       <Navbar />
 
-      {/* 1. Hero Section */}
-      <section id="cinematic-hero" className="relative h-screen w-full flex items-center justify-center overflow-hidden">
-        <div id="hero-media" className="absolute inset-0 w-full h-full transform origin-center">
-          <img 
-            src="https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?w=1600&q=80" 
-            alt="Luxury Residence Establishing Shot" 
-            className="w-full h-full object-cover filter brightness-[0.55]"
+      <section className="relative flex min-h-[760px] items-end overflow-hidden bg-[#18241f] pb-12 pt-36 text-white sm:min-h-[820px] sm:pb-16 lg:min-h-[880px] lg:pb-20">
+        <div className="absolute inset-0">
+          <img
+            src="https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?auto=format&fit=crop&w=2400&q=90"
+            alt="A sunlit villa nestled among tropical greenery"
+            className="h-full w-full object-cover object-center"
+            fetchPriority="high"
           />
-          <div className="absolute inset-0 bg-gradient-to-b from-black/60 via-transparent to-ink" />
+          <div className="absolute inset-0 bg-gradient-to-r from-[#10211d]/80 via-[#10211d]/35 to-transparent" />
+          <div className="absolute inset-0 bg-gradient-to-t from-[#10211d]/80 via-transparent to-[#10211d]/20" />
         </div>
 
-        <div className="relative z-10 max-w-7xl mx-auto px-4 md:px-8 text-center flex flex-col items-center pt-16 md:pt-0">
+        <div className="relative z-10 mx-auto w-full max-w-[1440px] px-5 sm:px-8 lg:px-12">
           <motion.div
-            initial={{ opacity: 0, y: 15 }}
+            initial={{ opacity: 0, y: 22 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8 }}
-            className="flex items-center gap-2 border border-white/10 px-4 py-1.5 rounded-full bg-white/5 backdrop-blur-md mb-6"
+            transition={{ duration: 0.8, ease: [0.22, 1, 0.36, 1] }}
+            className="max-w-3xl"
           >
-            <Sparkles size={12} className="text-gold animate-pulse" />
-            <p className="text-[9px] md:text-[10px] tracking-[0.2em] md:tracking-[0.25em] uppercase text-cream/70 font-600">
-              The Elyse Concept of Living
+            <div className="mb-5 inline-flex items-center gap-2 rounded-full border border-white/30 bg-white/10 px-4 py-2 text-xs font-medium tracking-wide text-white backdrop-blur-md">
+              <Sparkles size={14} className="text-[#f3c5a9]" />
+              A more thoughtful way to get away
+            </div>
+            <h1 className="max-w-3xl text-5xl font-semibold leading-[1.03] tracking-[-0.045em] sm:text-6xl lg:text-7xl">
+              Find a stay that
+              <br />
+              <span className="font-serif font-normal italic text-[#f6d5c3]">
+                feels like yours.
+              </span>
+            </h1>
+            <p className="mt-5 max-w-xl text-base leading-7 text-white/85 sm:text-lg">
+              Character-filled homes, warm hospitality, and little details that
+              make a trip feel unforgettable.
             </p>
           </motion.div>
 
-          <motion.h1
-            initial={{ opacity: 0, y: 25 }}
+          <motion.form
+            onSubmit={searchStays}
+            initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 1, delay: 0.1, ease: [0.22, 1, 0.36, 1] }}
-            className="font-display font-700 text-3xl sm:text-5xl md:text-8xl tracking-tight leading-[1.05] md:leading-[0.95] text-cream max-w-4xl italic"
+            transition={{ duration: 0.7, delay: 0.2 }}
+            className="mt-9 grid max-w-5xl grid-cols-1 gap-2 rounded-[28px] bg-white p-2 text-[#24302b] shadow-[0_24px_70px_rgba(0,0,0,0.24)] sm:grid-cols-2 lg:grid-cols-[1.35fr_1fr_1fr_0.8fr_auto] lg:gap-0 lg:rounded-full"
           >
-            Unveiling architectural <br />
-            <span className="font-sans font-800 not-italic text-transparent bg-clip-text bg-gradient-to-r from-cream via-gold-soft to-gold">
-              masterpieces.
+            <label className="flex min-h-[62px] flex-col justify-center rounded-2xl px-5 transition-colors hover:bg-[#f7f5f1] lg:rounded-full">
+              <span className="mb-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-[#65716a]">
+                Where to?
+              </span>
+              <span className="flex items-center gap-2">
+                <MapPin size={16} className="shrink-0 text-[#bd604a]" />
+                <input
+                  value={destination}
+                  onChange={(event) => setDestination(event.target.value)}
+                  placeholder="Search destinations"
+                  aria-label="Search destinations"
+                  className="min-w-0 flex-1 bg-transparent text-sm text-[#24302b] outline-none placeholder:text-[#858d87]"
+                />
+              </span>
+            </label>
+            <label className="flex min-h-[62px] flex-col justify-center rounded-2xl px-5 transition-colors hover:bg-[#f7f5f1] lg:rounded-full">
+              <span className="mb-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-[#65716a]">
+                Check in
+              </span>
+              <span className="flex items-center gap-2">
+                <CalendarDays size={16} className="shrink-0 text-[#bd604a]" />
+                <input
+                  type="date"
+                  value={checkIn}
+                  onChange={(event) => setCheckIn(event.target.value)}
+                  aria-label="Check-in date"
+                  className="min-w-0 flex-1 bg-transparent text-sm text-[#526058] outline-none [color-scheme:light]"
+                />
+              </span>
+            </label>
+            <label className="flex min-h-[62px] flex-col justify-center rounded-2xl px-5 transition-colors hover:bg-[#f7f5f1] lg:rounded-full">
+              <span className="mb-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-[#65716a]">
+                Check out
+              </span>
+              <span className="flex items-center gap-2">
+                <CalendarDays size={16} className="shrink-0 text-[#bd604a]" />
+                <input
+                  type="date"
+                  value={checkOut}
+                  min={checkIn || undefined}
+                  onChange={(event) => setCheckOut(event.target.value)}
+                  aria-label="Check-out date"
+                  className="min-w-0 flex-1 bg-transparent text-sm text-[#526058] outline-none [color-scheme:light]"
+                />
+              </span>
+            </label>
+            <label className="flex min-h-[62px] flex-col justify-center rounded-2xl px-5 transition-colors hover:bg-[#f7f5f1] lg:rounded-full">
+              <span className="mb-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-[#65716a]">
+                Guests
+              </span>
+              <span className="flex items-center gap-2">
+                <Users size={16} className="shrink-0 text-[#bd604a]" />
+                <select
+                  value={guests}
+                  onChange={(event) => setGuests(Number(event.target.value))}
+                  aria-label="Number of guests"
+                  className="min-w-0 flex-1 bg-transparent text-sm text-[#526058] outline-none"
+                >
+                  {[1, 2, 3, 4, 5, 6, 7, 8].map((count) => (
+                    <option key={count} value={count}>
+                      {count} {count === 1 ? "guest" : "guests"}
+                    </option>
+                  ))}
+                </select>
+              </span>
+            </label>
+            <button
+              type="submit"
+              className="flex min-h-[58px] items-center justify-center gap-2 rounded-full bg-[#bd604a] px-7 text-sm font-semibold text-white transition duration-300 hover:bg-[#a94d39] active:scale-[0.98] lg:min-h-0 lg:px-8"
+            >
+              <Search size={17} />
+              <span className="lg:hidden">Search stays</span>
+            </button>
+          </motion.form>
+
+          <div className="mt-7 flex flex-wrap items-center gap-x-6 gap-y-2 text-xs text-white/80">
+            <span className="inline-flex items-center gap-2">
+              <BadgeCheck size={15} className="text-[#f6d5c3]" />
+              Thoughtfully selected stays
             </span>
-          </motion.h1>
-
-          <motion.p
-            initial={{ opacity: 0, y: 15 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 1, delay: 0.2 }}
-            className="text-cream/55 max-w-xs sm:max-w-md md:max-w-lg mt-6 md:mt-8 text-xs md:text-base font-body tracking-wide leading-relaxed"
-          >
-            We curate architectural achievements that transcend space and time. Explore our hand-picked portfolio of waterfront sanctuaries and modern estates.
-          </motion.p>
-
-          <motion.div 
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ duration: 0.8, delay: 0.3 }}
-            className="flex flex-wrap items-center justify-center gap-3 mt-8 md:mt-10"
-          >
-            <Link 
-              href="/properties" 
-              className="text-[10px] md:text-xs font-700 px-5 md:px-6 py-3 rounded-full bg-gold text-ink uppercase tracking-wider hover:bg-white hover:text-ink transition-all duration-300 shadow-lg flex items-center gap-2"
-            >
-              <span>Visit Properties</span>
-              <ArrowRight size={13} />
-            </Link>
-            <Link 
-              href="/post" 
-              className="text-[10px] md:text-xs font-700 px-5 md:px-6 py-3 rounded-full border border-white/10 text-cream uppercase tracking-wider hover:border-gold hover:text-gold transition-colors duration-300"
-            >
-              List Your Property
-            </Link>
-          </motion.div>
-        </div>
-
-
-        <div className="absolute bottom-10 left-1/2 transform -translate-x-1/2 flex flex-col items-center gap-2 text-cream/40">
-          <span className="text-[9px] uppercase tracking-[0.25em] font-600">Scroll to Explore</span>
-          <div className="w-[1px] h-10 bg-white/10 relative overflow-hidden">
-            <motion.div 
-              animate={{ y: ["-100%", "100%"] }}
-              transition={{ repeat: Infinity, duration: 1.5, ease: "easeInOut" }}
-              className="absolute top-0 left-0 w-full h-1/2 bg-gold"
-            />
+            <span className="inline-flex items-center gap-2">
+              <ShieldCheck size={15} className="text-[#f6d5c3]" />
+              Hospitality with care
+            </span>
           </div>
         </div>
+
+        <a
+          href="#discover"
+          className="absolute bottom-8 right-8 hidden items-center gap-2 text-xs font-medium text-white/80 transition hover:text-white sm:flex"
+        >
+          Scroll to discover <ArrowDown size={14} />
+        </a>
       </section>
 
-      {/* 2. Trust Bar / Stats Strip */}
-      <section id="stats-strip" className="relative overflow-hidden bg-[#0c0c0c] border-y border-white/5 py-12 relative z-10">
-        <div className="absolute inset-0 opacity-[0.05] bg-[radial-gradient(circle_at_70%_120%,#D4AF37,transparent_45%)]" />
-        <div className="max-w-7xl mx-auto px-5 md:px-8 grid grid-cols-2 md:grid-cols-4 gap-8 md:gap-4 text-center relative z-10">
-          {stats.map((s, idx) => (
-            <motion.div 
-              key={idx}
-              initial={{ opacity: 0, y: 15 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ duration: 0.5, delay: idx * 0.1 }}
-              className="flex flex-col items-center"
-            >
-              <div className="flex items-baseline text-cream font-display font-700 text-3xl md:text-4xl italic text-gold">
-                <span id={`stat-val-${idx}`}>0</span>
-                <span>{s.suffix}</span>
-              </div>
-              <p className="text-[10px] uppercase tracking-wider text-cream/45 mt-2 font-700">{s.label}</p>
-            </motion.div>
-          ))}
-        </div>
-      </section>
-
-      {/* 3. Cinematic Scroll Sequence */}
-      <section id="section-curtain" className="py-28 border-b border-white/5 relative z-10">
-        <div className="max-w-7xl mx-auto px-5 md:px-8 grid md:grid-cols-2 gap-12 items-center">
-          <div className="flex flex-col gap-5">
-            <p className="text-[10px] tracking-[0.3em] uppercase text-gold font-700">01 / Materiality</p>
-            <h2 className="font-display font-700 text-4xl md:text-5xl italic text-cream leading-tight">
-              Warm rich wood finishings & <br />
-              <span className="font-sans font-800 not-italic text-cream/40">imported stone.</span>
-            </h2>
-            <p className="text-cream/55 text-sm leading-relaxed mt-4 font-body">
-              Every detail is selected to provide structural grandeur. Crafted with the finest premium natural stones, hand-molded metals, and timber frameworks.
-            </p>
-          </div>
-          <div className="relative rounded-3xl overflow-hidden border border-white/10 shadow-2xl h-[360px] md:h-[480px]">
-            <img 
-              id="curtain-reveal-img"
-              src="https://images.unsplash.com/photo-1600607687939-ce8a6c25118c?w=1000&q=80" 
-              alt="Kitchen with rich natural wood" 
-              className="w-full h-full object-cover"
-            />
-          </div>
-        </div>
-      </section>
-
-      {/* 4. About / Why Choose Us */}
-      <section className="py-28 bg-[#090909] border-b border-white/5 relative overflow-hidden z-10">
-        {/* Soft floating glow orbs in background */}
-        <div className="absolute top-1/4 left-1/4 w-96 h-96 rounded-full bg-gold/5 blur-[120px] pointer-events-none animate-pulse duration-[10s]" />
-        
-        <div className="max-w-7xl mx-auto px-5 md:px-8 grid md:grid-cols-2 gap-12 items-center relative z-10">
-          <div className="relative rounded-3xl overflow-hidden border border-white/10 shadow-2xl h-[340px] md:h-[440px] order-last md:order-first">
-            <img 
-              src="https://images.unsplash.com/photo-1600585154340-be6161a56a0c?w=800&q=80" 
-              alt="Luxury residence interior" 
-              className="w-full h-full object-cover"
-            />
-          </div>
-          <div className="flex flex-col gap-6">
-            <p className="text-[10px] tracking-[0.3em] uppercase text-gold font-700">02 / Curation</p>
-            <h2 className="font-display font-700 text-4xl italic text-cream leading-snug">
-              Unrivaled transparency, direct validation.
-            </h2>
-            <p className="text-cream/60 text-xs font-body leading-relaxed">
-              We operate completely free of standard brokerage fees, validating each title directly with owners to create a seamless acquisition space.
-            </p>
-            <div className="grid grid-cols-2 gap-6 mt-4">
-              <div className="flex gap-3">
-                <ShieldCheck className="text-gold flex-shrink-0" size={18} />
-                <div>
-                  <h4 className="text-xs font-700 uppercase tracking-wider text-cream">Title Verified</h4>
-                  <p className="text-[10px] text-cream/40 mt-1 leading-relaxed">Every document validated before list publishing.</p>
-                </div>
-              </div>
-              <div className="flex gap-3">
-                <Users className="text-gold flex-shrink-0" size={18} />
-                <div>
-                  <h4 className="text-xs font-700 uppercase tracking-wider text-cream">Direct Contact</h4>
-                  <p className="text-[10px] text-cream/40 mt-1 leading-relaxed">Deal directly with the verified listing owner.</p>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* 5. Categories Section */}
-      <section className="py-28 border-b border-white/5 relative z-10">
-        <div className="max-w-7xl mx-auto px-5 md:px-8 text-center mb-16">
-          <p className="text-[10px] tracking-[0.3em] uppercase text-gold font-700">03 / Categorization</p>
-          <h2 className="font-display font-700 text-3xl md:text-4xl italic text-cream mt-2">Browse Curated Categories</h2>
-        </div>
-        <div className="max-w-7xl mx-auto px-5 md:px-8 grid grid-cols-2 lg:grid-cols-4 gap-6">
-          {categories.map((c, idx) => (
-            <Link href={`/properties?category=${c.name}`} key={idx} className="group relative rounded-3xl overflow-hidden h-[300px] border border-white/5 block shadow-xl transition-all duration-300">
-              <img src={c.img} alt={c.name} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" />
-              <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent" />
-              <div className="absolute bottom-6 left-6 flex flex-col">
-                <span className="text-[10px] tracking-[0.2em] uppercase text-gold font-700 mb-1">{c.count} Listings</span>
-                <h3 className="font-display font-600 text-xl text-white italic">{c.name}</h3>
-              </div>
-            </Link>
-          ))}
-        </div>
-      </section>
-
-      {/* 6. Featured Properties */}
-      <section className="py-28 bg-[#090909] border-b border-white/5 relative overflow-hidden z-10">
-        <div className="absolute bottom-0 right-0 w-80 h-80 rounded-full bg-gold/5 blur-[100px] pointer-events-none" />
-        <div className="max-w-7xl mx-auto px-5 md:px-8 relative z-10">
-          <div className="flex flex-col md:flex-row md:items-end justify-between mb-16 border-b border-white/5 pb-6">
-            <div>
-              <p className="text-[10px] tracking-[0.2em] uppercase text-gold font-700 mb-2">Selected Portfolios</p>
-              <h2 className="font-display font-700 text-4xl italic text-cream">Featured Residences</h2>
-            </div>
-            <p className="text-xs text-cream/40 mt-3 md:mt-0 max-w-xs">
-              A curated duet of architectural sanctuaries currently available for acquisition.
-            </p>
-          </div>
-
-          {loading ? (
-            <div className="grid md:grid-cols-2 gap-8">
-              <div className="h-[400px] rounded-3xl bg-white/5 animate-pulse" />
-              <div className="h-[400px] rounded-3xl bg-white/5 animate-pulse" />
-            </div>
-          ) : (
-            <div className="grid md:grid-cols-2 gap-12">
-              {featuredProperties.map((p, idx) => (
-                <div key={p.id || idx} className="transform hover:-translate-y-2 transition-all duration-300">
-                  <PropertyCard property={p} index={idx} />
-                </div>
-              ))}
-            </div>
-          )}
-
-          <div className="flex justify-center mt-16">
-            <Link 
-              href="/properties" 
-              className="text-xs font-700 px-8 py-3.5 rounded-full bg-gold text-ink uppercase tracking-wider hover:bg-white hover:text-ink transition-all duration-300 shadow-xl flex items-center gap-3"
-            >
-              <span>Explore All Properties</span>
-              <ArrowRight size={14} />
-            </Link>
-          </div>
-        </div>
-      </section>
-
-      {/* 7. How It Works Section */}
-      <section id="process-section" className="py-28 border-b border-white/5 relative z-10 overflow-hidden">
-        <div className="max-w-7xl mx-auto px-5 md:px-8 text-center mb-20">
-          <p className="text-[10px] tracking-[0.3em] uppercase text-gold font-700">04 / Protocol</p>
-          <h2 className="font-display font-700 text-3xl md:text-4xl italic text-cream mt-2">The Direct Acquisition Process</h2>
-        </div>
-        <div className="max-w-7xl mx-auto px-5 md:px-8 relative grid md:grid-cols-4 gap-8 md:gap-4">
-          {/* Animated Connecting SVG Line */}
-          <div className="absolute top-1/4 left-0 w-full h-[2px] hidden md:block z-0">
-            <svg className="w-full h-full" fill="none">
-              <line id="process-line" x1="10%" y1="50%" x2="90%" y2="50%" stroke="#D4AF37" strokeWidth="2" strokeDasharray="6 6" />
-            </svg>
-          </div>
-
+      <section className="border-b border-[#e8e7e1] bg-white py-7">
+        <div className="mx-auto grid max-w-[1440px] grid-cols-2 gap-5 px-5 sm:grid-cols-4 sm:px-8 lg:px-12">
           {[
-            { step: "01", title: "Select Estate", desc: "Browse validated listings and check architectural plans." },
-            { step: "02", title: "Verify Credentials", desc: "Contact checked owners directly through verified channels." },
-            { step: "03", title: "Draft Proposal", desc: "Submit direct transaction enquiries securely." },
-            { step: "04", title: "Acquire & Settle", desc: "Complete paper works directly, key handover." }
-          ].map((p, idx) => (
-            <motion.div 
-              key={idx}
+            ["A stay, not just a room", "Spaces with their own story"],
+            ["Made for real moments", "Little comforts, thoughtfully chosen"],
+            ["A better kind of welcome", "Hospitality that feels personal"],
+            ["More places to discover", "From city weekends to slow escapes"],
+          ].map(([title, detail], index) => (
+            <Reveal key={title} delay={index * 0.06} className="flex gap-3">
+              <span className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#f8eee8] text-[#bd604a]">
+                {index === 0 ? (
+                  <House size={17} />
+                ) : index === 1 ? (
+                  <Heart size={17} />
+                ) : index === 2 ? (
+                  <Sparkles size={17} />
+                ) : (
+                  <MapPin size={17} />
+                )}
+              </span>
+              <span>
+                <span className="block text-sm font-semibold text-[#29352f]">
+                  {title}
+                </span>
+                <span className="mt-1 block text-xs leading-5 text-[#758078]">
+                  {detail}
+                </span>
+              </span>
+            </Reveal>
+          ))}
+        </div>
+      </section>
+
+      <section id="discover" className="mx-auto max-w-[1440px] px-5 py-20 sm:px-8 lg:px-12 lg:py-24">
+        <Reveal className="mb-9 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <p className="mb-2 text-xs font-semibold uppercase tracking-[0.16em] text-[#bd604a]">
+              A good place to start
+            </p>
+            <h2 className="text-3xl font-semibold tracking-[-0.035em] text-[#26322c] sm:text-4xl">
+              Where will the weekend take you?
+            </h2>
+          </div>
+          <Link
+            href="/properties"
+            className="inline-flex items-center gap-2 text-sm font-semibold text-[#34433b] transition hover:text-[#bd604a]"
+          >
+            See all stays <ArrowRight size={16} />
+          </Link>
+        </Reveal>
+
+        <div className="grid grid-cols-2 gap-4 md:grid-cols-4 md:gap-5">
+          {destinations.map((place, index) => (
+            <motion.button
+              key={place.name}
+              type="button"
+              onClick={() => searchCity(place.name)}
               initial={{ opacity: 0, y: 20 }}
               whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ duration: 0.6, delay: idx * 0.15 }}
-              className="relative z-10 bg-[#121212] border border-white/5 rounded-3xl p-6 flex flex-col items-center text-center shadow-lg"
+              viewport={{ once: true, amount: 0.2 }}
+              transition={{ duration: 0.55, delay: index * 0.08 }}
+              whileHover={{ y: -5 }}
+              className="group text-left"
             >
-              <div className="w-12 h-12 rounded-2xl bg-gold/10 border border-gold/25 flex items-center justify-center mb-6">
-                <span className="text-gold font-display font-700 text-base italic">{p.step}</span>
+              <div className="relative aspect-[0.9] overflow-hidden rounded-[24px] bg-[#e8e6de] sm:aspect-[0.88]">
+                <img
+                  src={place.image}
+                  alt={`${place.name}, India`}
+                  loading="lazy"
+                  className="h-full w-full object-cover transition-transform duration-700 ease-out group-hover:scale-[1.055]"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/55 via-transparent to-transparent" />
+                <span className="absolute bottom-4 left-4 right-4 text-white">
+                  <span className="block text-xl font-semibold tracking-tight sm:text-2xl">
+                    {place.name}
+                  </span>
+                  <span className="mt-1 block text-xs text-white/85 sm:text-sm">
+                    {place.detail}
+                  </span>
+                </span>
+                <span className="absolute right-4 top-4 flex h-9 w-9 items-center justify-center rounded-full bg-white/90 text-[#26322c] transition-transform group-hover:translate-x-0.5">
+                  <ArrowUpRight size={16} />
+                </span>
               </div>
-              <h3 className="font-display font-600 text-lg text-white italic mb-2">{p.title}</h3>
-              <p className="text-cream/45 text-[11px] font-body leading-relaxed">{p.desc}</p>
-            </motion.div>
+            </motion.button>
           ))}
         </div>
       </section>
 
-      {/* 8. Location Highlights */}
-      <section className="py-28 bg-[#090909] border-b border-white/5 relative overflow-hidden z-10">
-        <div className="absolute top-1/3 left-1/3 w-96 h-96 rounded-full bg-gold/5 blur-[120px] pointer-events-none" />
-        <div className="max-w-7xl mx-auto px-5 md:px-8 text-center mb-16 relative z-10">
-          <p className="text-[10px] tracking-[0.3em] uppercase text-gold font-700">05 / Geography</p>
-          <h2 className="font-display font-700 text-3xl md:text-4xl italic text-cream mt-2">Sought-After Locations</h2>
-        </div>
-        <div className="max-w-7xl mx-auto px-5 md:px-8 grid grid-cols-2 lg:grid-cols-4 gap-6 relative z-10">
-          {locations.map((loc, idx) => (
-            <motion.div
-              key={idx}
-              initial={{ opacity: 0, scale: 0.95 }}
-              whileInView={{ opacity: 1, scale: 1 }}
-              viewport={{ once: true }}
-              transition={{ duration: 0.5, delay: idx * 0.1 }}
-              className="group relative rounded-3xl overflow-hidden h-[240px] border border-white/5 shadow-lg"
+      <section className="bg-[#f5f2eb] py-20 lg:py-24">
+        <div className="mx-auto max-w-[1440px] px-5 sm:px-8 lg:px-12">
+          <Reveal className="mb-9 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+            <div>
+              <p className="mb-2 text-xs font-semibold uppercase tracking-[0.16em] text-[#bd604a]">
+                A few places we love
+              </p>
+              <h2 className="text-3xl font-semibold tracking-[-0.035em] text-[#26322c] sm:text-4xl">
+                Stays worth staying in for.
+              </h2>
+            </div>
+            <p className="max-w-sm text-sm leading-6 text-[#707a73]">
+              Browse available homes and find the one that makes your next trip
+              feel like yours.
+            </p>
+          </Reveal>
+
+          {loading ? (
+            <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
+              {[0, 1, 2, 3].map((item) => (
+                <div
+                  key={item}
+                  className="aspect-[0.86] animate-pulse rounded-[24px] bg-white"
+                />
+              ))}
+            </div>
+          ) : loadError ? (
+            <div
+              role="alert"
+              className="rounded-3xl border border-[#e5c6bb] bg-white px-6 py-14 text-center"
             >
-              <img src={loc.img} alt={loc.city} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" />
-              <div className="absolute inset-0 bg-black/60 backdrop-blur-[1px]" />
-              <div className="absolute inset-0 flex flex-col items-center justify-center text-center p-4">
-                <h3 className="font-display font-700 text-2xl text-white italic">{loc.city}</h3>
-                <span className="text-[10px] tracking-[0.15em] uppercase text-gold font-700 mt-1">{loc.listings} Available</span>
-              </div>
-            </motion.div>
-          ))}
-        </div>
-      </section>
-
-      {/* 9. Testimonials Carousel */}
-      <section className="py-28 border-b border-white/5 relative z-10 bg-black/20 overflow-hidden">
-        {/* Animated Background Mesh */}
-        <div className="absolute inset-0 pointer-events-none opacity-[0.08] mix-blend-screen bg-[radial-gradient(circle_at_50%_120%,#D4AF37,transparent_55%)] animate-pulse duration-[9s]" />
-        
-        <div className="max-w-4xl mx-auto px-5 md:px-8 text-center relative z-10">
-          <p className="text-[10px] tracking-[0.3em] uppercase text-gold font-700 mb-8">06 / Endorsements</p>
-          
-          <div className="min-h-[160px] flex items-center justify-center">
-            <AnimatePresence mode="wait">
-              <motion.div
-                key={activeTestimonial}
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -10 }}
-                transition={{ duration: 0.4 }}
-                className="flex flex-col items-center"
+              <House className="mx-auto text-[#bd604a]" size={28} />
+              <h3 className="mt-4 text-lg font-semibold text-[#29352f]">
+                We hit a little travel snag
+              </h3>
+              <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-[#758078]">
+                {loadError} Please try again in a moment.
+              </p>
+              <button
+                type="button"
+                onClick={() => setReloadKey((key) => key + 1)}
+                className="mt-5 rounded-full bg-[#20372f] px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-[#2d4a40]"
               >
-                <p className="font-display font-500 text-2xl md:text-3xl italic text-cream leading-relaxed tracking-wide">
-                  "{testimonials[activeTestimonial].quote}"
-                </p>
-                <h4 className="font-sans font-700 text-gold text-xs uppercase tracking-widest mt-8">
-                  {testimonials[activeTestimonial].name}
-                </h4>
-                <p className="text-[10px] text-cream/40 uppercase mt-1 font-500">
-                  {testimonials[activeTestimonial].role}
-                </p>
-              </motion.div>
-            </AnimatePresence>
-          </div>
-
-          <div className="flex justify-center gap-2.5 mt-10">
-            {testimonials.map((_, idx) => (
-              <button 
-                key={idx}
-                onClick={() => setActiveTestimonial(idx)}
-                className={`w-2.5 h-2.5 rounded-full transition-all duration-300 ${
-                  activeTestimonial === idx ? "bg-gold scale-125" : "bg-white/10 hover:bg-white/30"
-                }`}
-                aria-label={`Go to testimonial ${idx + 1}`}
-              />
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* 10. Featured Boosted Ad Banner */}
-      <section id="featured-ad-banner" className="relative h-[480px] w-full overflow-hidden border-b border-white/5 flex items-center justify-center">
-        <div id="ad-banner-bg" className="absolute inset-0 w-full h-[130%] top-[-15%] transform">
-          <img 
-            src="https://images.unsplash.com/photo-1600566753190-17f0baa2a6c3?w=1600&q=80" 
-            alt="Boasted Mansion View" 
-            className="w-full h-full object-cover filter brightness-[0.4]"
-          />
-        </div>
-        <div className="absolute inset-0 bg-gradient-to-t from-ink via-transparent to-ink/60" />
-        
-        <div className="relative z-10 max-w-4xl mx-auto px-5 md:px-8 text-center flex flex-col items-center">
-          <span className="text-[10px] tracking-[0.25em] uppercase text-gold font-700 border border-gold/30 bg-gold/5 px-4 py-1.5 rounded-full mb-6">
-            Featured Masterpiece
-          </span>
-          <h2 className="font-display font-700 text-4xl md:text-6xl italic text-white leading-tight">
-            The Glass Pavilion, Alibaug
-          </h2>
-          <p className="text-cream/60 max-w-md mt-4 text-xs font-body leading-relaxed">
-            Double-height cantilevered ceilings, private pool deck, and direct oceanfront access coordinates.
-          </p>
-          <Link 
-            href="/properties" 
-            className="text-[10px] tracking-widest font-700 px-6 py-3 rounded-full bg-gold text-ink uppercase mt-8 hover:bg-white hover:text-ink transition-all duration-300 flex items-center gap-2 transform active:scale-95"
-          >
-            <span>View Proposal</span>
-            <ArrowUpRight size={13} />
-          </Link>
-        </div>
-      </section>
-
-      {/* 11. FAQ Accordion Section */}
-      <section className="py-28 border-b border-white/5 relative overflow-hidden z-10 bg-[#090909]">
-        {/* Soft glowing orb behind accordion */}
-        <div className="absolute top-1/2 right-1/4 w-96 h-96 rounded-full bg-gold/5 blur-[120px] pointer-events-none" />
-        
-        <div className="max-w-4xl mx-auto px-5 md:px-8 relative z-10">
-          <div className="text-center mb-16">
-            <p className="text-[10px] tracking-[0.3em] uppercase text-gold font-700">07 / FAQ</p>
-            <h2 className="font-display font-700 text-3xl md:text-4xl italic text-cream mt-2">Frequently Queries</h2>
-          </div>
-
-          <div className="flex flex-col gap-4">
-            {faqs.map((faq, idx) => (
-              <div 
-                key={idx}
-                className="border border-white/5 rounded-3xl bg-[#121212]/90 backdrop-blur-md overflow-hidden transition-all duration-300"
+                Try again
+              </button>
+            </div>
+          ) : properties.length > 0 ? (
+            <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
+              {properties.map((property, index) => (
+                <PropertyCard
+                  key={property.id || property._id || index}
+                  property={property}
+                  index={index}
+                />
+              ))}
+            </div>
+          ) : (
+            <div className="rounded-3xl border border-dashed border-[#d8d5cc] bg-white/70 px-6 py-14 text-center">
+              <House className="mx-auto text-[#bd604a]" size={28} />
+              <h3 className="mt-4 text-lg font-semibold text-[#29352f]">
+                New stays are on their way
+              </h3>
+              <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-[#758078]">
+                Explore the current collection and check back as more homes are
+                added.
+              </p>
+              <Link
+                href="/properties"
+                className="mt-5 inline-flex items-center gap-2 text-sm font-semibold text-[#bd604a] hover:text-[#a94d39]"
               >
-                <button
-                  onClick={() => setActiveFaq(activeFaq === idx ? null : idx)}
-                  className="w-full px-6 py-5 flex items-center justify-between text-left focus:outline-none"
-                >
-                  <span className="font-display font-600 text-base text-cream italic">{faq.q}</span>
-                  <motion.div
-                    animate={{ rotate: activeFaq === idx ? 180 : 0 }}
-                    transition={{ duration: 0.3 }}
-                    className="text-gold"
-                  >
-                    <ChevronDown size={18} />
-                  </motion.div>
-                </button>
-                
-                <AnimatePresence initial={false}>
-                  {activeFaq === idx && (
-                    <motion.div
-                      initial={{ height: 0, opacity: 0 }}
-                      animate={{ height: "auto", opacity: 1 }}
-                      exit={{ height: 0, opacity: 0 }}
-                      transition={{ duration: 0.3 }}
-                      className="overflow-hidden border-t border-white/5 bg-black/10"
-                    >
-                      <p className="px-6 py-5 text-xs text-cream/55 leading-relaxed font-body">{faq.a}</p>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* 12. Newsletter CTA Strip */}
-      <section className="py-24 relative overflow-hidden z-10 bg-ink border-b border-white/5">
-        {/* Ambient Gradient Mesh Background */}
-        <div className="absolute inset-0 pointer-events-none opacity-[0.12] mix-blend-screen bg-[radial-gradient(circle_at_50%_0%,#D4AF37,transparent_60%)] animate-pulse duration-[10s]" />
-        
-        <div className="max-w-4xl mx-auto px-5 md:px-8 text-center flex flex-col items-center relative z-10">
-          <p className="text-[10px] tracking-[0.3em] uppercase text-gold font-700 mb-2">08 / Intelligence</p>
-          <h2 className="font-display font-700 text-3xl md:text-4xl italic text-white leading-tight">
-            Subscribe to Private Listings
-          </h2>
-          <p className="text-cream/55 text-xs font-body max-w-sm mt-3 leading-relaxed">
-            Get private details, unlisted price alerts, and new structural releases directly inside your inbox.
-          </p>
-
-          <form onSubmit={(e) => e.preventDefault()} className="w-full max-w-md flex items-center gap-3 mt-8 border-b border-white/10 pb-2">
-            <input 
-              type="email"
-              placeholder="Enter your personal email address"
-              className="bg-transparent outline-none flex-1 text-xs text-cream placeholder:text-cream/30 px-2 py-2"
-              required
-            />
-            <button 
-              type="submit"
-              className="text-[10px] tracking-widest font-700 text-gold uppercase px-4 py-2 hover:text-white transition-colors duration-300"
+                Browse the collection <ArrowRight size={16} />
+              </Link>
+            </div>
+          )}
+          <div className="mt-8 text-center">
+            <Link
+              href="/properties"
+              className="inline-flex items-center gap-2 rounded-full border border-[#c9ccc5] px-6 py-3 text-sm font-semibold text-[#34433b] transition hover:border-[#34433b] hover:bg-white"
             >
-              Subscribe
+              Explore all properties <ArrowRight size={16} />
+            </Link>
+          </div>
+        </div>
+      </section>
+
+      <section className="mx-auto max-w-[1440px] px-5 py-20 sm:px-8 lg:px-12 lg:py-24">
+        <Reveal className="mb-9 flex items-end justify-between gap-4">
+          <div>
+            <p className="mb-2 text-xs font-semibold uppercase tracking-[0.16em] text-[#bd604a]">
+              Stay your way
+            </p>
+            <h2 className="text-3xl font-semibold tracking-[-0.035em] text-[#26322c] sm:text-4xl">
+              For the kind of trip you need.
+            </h2>
+          </div>
+          <div className="hidden gap-2 sm:flex">
+            <button
+              type="button"
+              onClick={() =>
+                setActiveIdea((activeIdea - 1 + tripIdeas.length) % tripIdeas.length)
+              }
+              aria-label="Previous trip idea"
+              className="flex h-10 w-10 items-center justify-center rounded-full border border-[#d8d9d2] text-[#34433b] transition hover:bg-white"
+            >
+              <ChevronLeft size={18} />
             </button>
-          </form>
+            <button
+              type="button"
+              onClick={() => setActiveIdea((activeIdea + 1) % tripIdeas.length)}
+              aria-label="Next trip idea"
+              className="flex h-10 w-10 items-center justify-center rounded-full border border-[#d8d9d2] text-[#34433b] transition hover:bg-white"
+            >
+              <ChevronRight size={18} />
+            </button>
+          </div>
+        </Reveal>
+        <div className="grid gap-5 md:grid-cols-3">
+          <AnimatePresence mode="sync">
+            {displayedTripIdeas.map((idea, index) => (
+              <motion.div
+                key={`${idea.label}-${activeIdea}`}
+                initial={{ opacity: 0, y: 14 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true, amount: 0.15 }}
+                transition={{ duration: 0.5, delay: index * 0.07 }}
+                className={`group relative h-[300px] overflow-hidden rounded-[26px] ${
+                  index === 0 ? "md:col-span-1" : ""
+                }`}
+              >
+                <img
+                  src={`https://images.unsplash.com/${idea.image}?auto=format&fit=crop&w=1000&q=85`}
+                  alt={idea.label}
+                  loading="lazy"
+                  className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-105"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-[#17231e]/75 via-transparent to-transparent" />
+                <div className="absolute bottom-6 left-6 right-6 flex items-end justify-between text-white">
+                  <h3 className="max-w-[220px] text-2xl font-semibold leading-tight tracking-tight">
+                    {idea.label}
+                  </h3>
+                  <Link
+                    href="/properties"
+                    aria-label={`Explore stays: ${idea.label}`}
+                    className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white text-[#29352f] transition hover:bg-[#f6d5c3]"
+                  >
+                    <ArrowUpRight size={18} />
+                  </Link>
+                </div>
+              </motion.div>
+            ))}
+          </AnimatePresence>
+        </div>
+        <div className="mt-5 flex justify-center gap-2 sm:hidden">
+          {tripIdeas.map((idea, index) => (
+            <button
+              key={idea.label}
+              type="button"
+              aria-label={`Show trip idea ${index + 1}`}
+              onClick={() => setActiveIdea(index)}
+              className={`h-2 rounded-full transition-all ${
+                index === activeIdea ? "w-6 bg-[#bd604a]" : "w-2 bg-[#c9ccc5]"
+              }`}
+            />
+          ))}
         </div>
       </section>
 
+      <section className="relative overflow-hidden bg-[#20372f] py-20 text-white lg:py-24">
+        <div className="absolute -right-24 -top-32 h-[440px] w-[440px] rounded-full border border-white/10" />
+        <div className="absolute -right-5 -top-14 h-[300px] w-[300px] rounded-full border border-white/10" />
+        <div className="relative mx-auto grid max-w-[1440px] gap-10 px-5 sm:px-8 lg:grid-cols-[1.1fr_0.9fr] lg:items-center lg:px-12">
+          <Reveal>
+            <p className="mb-3 text-xs font-semibold uppercase tracking-[0.18em] text-[#f6d5c3]">
+              Your place could be someone’s favourite
+            </p>
+            <h2 className="max-w-xl text-4xl font-semibold leading-tight tracking-[-0.04em] sm:text-5xl">
+              Host with heart.
+              <br />
+              We’ll help with the rest.
+            </h2>
+            <p className="mt-5 max-w-lg text-sm leading-7 text-white/75">
+              Bring your home to Mehmaan Easy. Our team can help you get your
+              listing ready, thoughtfully presented, and ready to welcome guests.
+            </p>
+            <Link
+              href="/post"
+              className="mt-8 inline-flex items-center gap-2 rounded-full bg-white px-6 py-3 text-sm font-semibold text-[#20372f] transition hover:bg-[#f6d5c3]"
+            >
+              List your property <ArrowRight size={16} />
+            </Link>
+          </Reveal>
+          <Reveal delay={0.12} className="grid gap-3 sm:grid-cols-2">
+            {[
+              ["01", "Share your space", "Tell us about the stay you want to offer."],
+              ["02", "Get listing-ready", "We’ll guide you through your property details."],
+              ["03", "Welcome your guests", "Manage your listing from your dashboard."],
+              ["04", "Grow with support", "Ask our team about styling and photography."],
+            ].map(([step, title, description]) => (
+              <div
+                key={step}
+                className="rounded-2xl border border-white/15 bg-white/[0.06] p-5 backdrop-blur-sm"
+              >
+                <span className="text-xs font-semibold tracking-[0.15em] text-[#f6d5c3]">
+                  {step}
+                </span>
+                <h3 className="mt-4 text-base font-semibold">{title}</h3>
+                <p className="mt-2 text-xs leading-5 text-white/65">{description}</p>
+              </div>
+            ))}
+          </Reveal>
+        </div>
+      </section>
+
+      <section className="bg-[#fffdf9] px-5 py-12 text-center sm:px-8">
+        <p className="text-sm font-medium text-[#69756d]">
+          Mehmaan Easy <span className="mx-2 text-[#bd604a]">·</span> Stay
+          better. Book easier.
+        </p>
+      </section>
     </main>
   );
 }

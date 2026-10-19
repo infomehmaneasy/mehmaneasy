@@ -1,102 +1,128 @@
 "use client";
 
+import Link from "next/link";
 import { motion } from "framer-motion";
+import { ArrowRight, Heart, ShieldCheck, Sparkles } from "lucide-react";
 import Navbar from "@/components/Navbar";
 
-export default function AboutPage() {
-  const team = [
-    { name: "Julian Elyse", role: "Principal Architect", img: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400&q=80" },
-    { name: "Sophia Lorrent", role: "Lead Curator & Partner", img: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=400&q=80" }
-  ];
+const values = [
+  {
+    number: "01",
+    icon: ShieldCheck,
+    title: "Care comes first",
+    description:
+      "We want every Mehmaan Easy stay to feel considered, comfortable, and cared for from the moment you arrive.",
+  },
+  {
+    number: "02",
+    icon: Heart,
+    title: "Places with a point of view",
+    description:
+      "From a quiet apartment to a weekend home, we believe the right details can make a place feel memorable.",
+  },
+  {
+    number: "03",
+    icon: Sparkles,
+    title: "A warmer welcome",
+    description:
+      "We’re building a more personal way for guests to discover homes and for hosts to share what they love.",
+  },
+];
 
+export default function AboutPage() {
   return (
-    <main className="min-h-screen bg-ink text-cream relative">
+    <main className="min-h-screen bg-[#fffdf9] text-[#24302b]">
       <Navbar />
 
-      {/* Blueprint background lines */}
-      <div className="absolute inset-0 opacity-[0.03] pointer-events-none select-none mix-blend-screen">
-        <svg className="w-full h-full" xmlns="http://www.w3.org/2000/svg">
-          <defs>
-            <pattern id="about-grid" width="60" height="60" patternUnits="userSpaceOnUse">
-              <path d="M 60 0 L 0 0 0 60" fill="none" stroke="white" strokeWidth="1" />
-            </pattern>
-          </defs>
-          <rect width="100%" height="100%" fill="url(#about-grid)" />
-        </svg>
-      </div>
-
-      <section className="max-w-5xl mx-auto px-5 md:px-8 py-20 relative z-10">
-        <div className="grid md:grid-cols-2 gap-12 items-center">
-          {/* Elegant 3D Tilt Frame for image */}
+      <section className="mx-auto max-w-[1440px] px-5 pb-20 pt-32 sm:px-8 lg:px-12 lg:pb-28">
+        <div className="grid gap-10 md:grid-cols-2 md:items-center lg:gap-16">
           <motion.div
-            initial={{ opacity: 0, x: -30, rotateY: 15 }}
-            animate={{ opacity: 1, x: 0, rotateY: 0 }}
-            transition={{ duration: 0.8, ease: [0.22, 1, 0.36, 1] }}
-            style={{ perspective: 1000 }}
-            className="relative group rounded-3xl overflow-hidden border border-white/10 shadow-2xl h-[450px]"
+            initial={{ opacity: 0, x: -22 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
+            className="relative h-[360px] overflow-hidden rounded-[28px] sm:h-[480px]"
           >
-            <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent z-10" />
-            <motion.img
-              whileHover={{ scale: 1.05 }}
-              transition={{ duration: 0.6 }}
-              src="https://images.unsplash.com/photo-1600585154340-be6161a56a0c?w=800&q=80"
-              alt="Luxury residence interior"
-              className="w-full h-full object-cover"
+            <img
+              src="https://images.unsplash.com/photo-1600210492486-724fe5c67fb0?auto=format&fit=crop&w=1200&q=85"
+              alt="A welcoming living room in a thoughtfully styled home"
+              className="h-full w-full object-cover"
             />
-            
-            {/* Elegant HUD architectural detail overlay */}
-            <div className="absolute bottom-6 left-6 z-20">
-              <p className="text-[10px] tracking-[0.2em] uppercase text-gold font-700">Project Reference</p>
-              <h3 className="font-display font-600 text-xl italic text-white mt-1">The Glass Sanctuary</h3>
-            </div>
+            <div className="absolute inset-0 bg-gradient-to-t from-[#15251f]/50 via-transparent to-transparent" />
+            <span className="absolute bottom-6 left-6 rounded-full bg-white/90 px-4 py-2 text-xs font-semibold text-[#34433b]">
+              Stay better. Book easier.
+            </span>
           </motion.div>
 
-          <div className="flex flex-col gap-6">
-            <p className="text-[10px] tracking-[0.3em] uppercase text-gold font-700">Our Heritage</p>
-            <h1 className="font-display font-700 text-4xl md:text-6xl leading-[0.95] text-cream italic">
-              Crafting legacy <br />
-              <span className="font-sans font-800 not-italic text-transparent bg-clip-text bg-gradient-to-r from-cream via-gold-soft to-gold">
-                since MCMXCVIII.
+          <motion.div
+            initial={{ opacity: 0, y: 18 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.7, delay: 0.1 }}
+          >
+            <p className="mb-3 text-xs font-semibold uppercase tracking-[0.16em] text-[#bd604a]">
+              Our story
+            </p>
+            <h1 className="text-4xl font-semibold leading-[1.04] tracking-[-0.045em] text-[#26322c] sm:text-6xl">
+              A good stay
+              <br />
+              <span className="font-serif font-normal italic">
+                stays with you.
               </span>
             </h1>
-            
-            <p className="text-cream/60 font-body text-sm leading-relaxed mt-4">
-              We curate architectural achievements that transcend space and time. Our approach brings buyers and sellers together in a bespoke premium marketplace without friction or intermediaries.
+            <p className="mt-6 text-base leading-7 text-[#65716a]">
+              Mehmaan Easy is being built around a simple idea: finding a place
+              to stay should feel as welcoming as arriving there. We’re creating
+              an India-first marketplace for thoughtful homes, warm hospitality,
+              and easier getaways.
             </p>
-            <p className="text-cream/60 font-body text-sm leading-relaxed">
-              Every penthouse, waterfront cottage, and modern sanctuary in our portfolio is selected for its lofty ceilings, custom warm wood craftings, and exquisite design aesthetics.
+            <p className="mt-4 text-sm leading-7 text-[#758078]">
+              Our goal is to help guests discover places with character and to
+              give hosts practical support as they prepare their homes to
+              welcome people.
             </p>
-          </div>
+            <Link
+              href="/properties"
+              className="mt-8 inline-flex items-center gap-2 rounded-full bg-[#20372f] px-6 py-3 text-sm font-semibold text-white transition hover:bg-[#2d4a40]"
+            >
+              Explore stays <ArrowRight size={16} />
+            </Link>
+          </motion.div>
         </div>
 
-        {/* Curation Philosophy in 3D Cards */}
-        <div className="mt-32">
-          <div className="text-center mb-16">
-            <p className="text-[10px] tracking-[0.3em] uppercase text-gold font-700 mb-2">Our Standards</p>
-            <h2 className="font-display font-700 text-3xl italic">The Pillars of Curation</h2>
+        <div className="mt-20 lg:mt-28">
+          <div className="mb-9 max-w-2xl">
+            <p className="mb-2 text-xs font-semibold uppercase tracking-[0.16em] text-[#bd604a]">
+              What we believe
+            </p>
+            <h2 className="text-3xl font-semibold tracking-[-0.035em] text-[#26322c] sm:text-4xl">
+              The feeling is in the details.
+            </h2>
           </div>
-
-          <div className="grid md:grid-cols-3 gap-6">
-            {[
-              { title: "Architectural Grandeur", desc: "Lofty custom ceilings and sculptural structures that challenge traditional space definitions." },
-              { title: "Bespoke Artistry", desc: "Warm rich wood finishings, imported premium stone surfaces and hand-detailed metalworks." },
-              { title: "Privacy & Sanctuary", desc: "Private access entries, intelligent spatial layout, and custom landscape integrations." }
-            ].map((p, i) => (
-              <motion.div
-                key={i}
-                initial={{ opacity: 0, y: 30 }}
+          <div className="grid gap-4 md:grid-cols-3">
+            {values.map(({ number, icon: Icon, title, description }, index) => (
+              <motion.article
+                key={number}
+                initial={{ opacity: 0, y: 20 }}
                 whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ duration: 0.6, delay: i * 0.1 }}
-                whileHover={{ y: -8, rotateX: 2, rotateY: -2 }}
-                className="bg-[#121212] border border-white/5 p-8 rounded-3xl transition-all duration-300 shadow-xl"
+                viewport={{ once: true, amount: 0.2 }}
+                transition={{ duration: 0.55, delay: index * 0.08 }}
+                whileHover={{ y: -4 }}
+                className="rounded-[24px] border border-[#e8e7e1] bg-white p-7 transition-shadow hover:shadow-[0_14px_35px_rgba(32,45,37,0.08)]"
               >
-                <div className="w-8 h-8 rounded-full bg-gold/10 border border-gold/20 flex items-center justify-center mb-6">
-                  <span className="text-gold text-xs font-700">0{i + 1}</span>
+                <div className="flex items-center justify-between">
+                  <span className="flex h-11 w-11 items-center justify-center rounded-full bg-[#f8eee8] text-[#bd604a]">
+                    <Icon size={19} />
+                  </span>
+                  <span className="text-xs font-semibold tracking-[0.14em] text-[#a0a79f]">
+                    {number}
+                  </span>
                 </div>
-                <h3 className="font-display font-600 text-lg text-cream italic mb-3">{p.title}</h3>
-                <p className="text-cream/50 text-xs leading-relaxed">{p.desc}</p>
-              </motion.div>
+                <h3 className="mt-7 text-lg font-semibold text-[#29352f]">
+                  {title}
+                </h3>
+                <p className="mt-2 text-sm leading-6 text-[#758078]">
+                  {description}
+                </p>
+              </motion.article>
             ))}
           </div>
         </div>

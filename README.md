@@ -1,6 +1,8 @@
 # Mehmaan Easy
 
-Property buy & sell marketplace — Next.js (App Router) + Tailwind + Framer Motion, on Firebase (Auth, Firestore, Storage, Cloud Functions).
+Curated stays marketplace — Next.js (App Router) + Tailwind + Framer Motion, with Firebase authentication and MongoDB property listings.
+
+The guest-facing experience is designed around finding and hosting stays. The current listing schema still stores monthly rental and real-estate-style property records; nightly rates, booking availability, payments, and reservation workflows need to be added before guests can complete a stay booking.
 
 ## 1. Firebase project setup
 1. Create a project at console.firebase.google.com.

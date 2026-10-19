@@ -6,38 +6,41 @@ export default function Footer() {
   const currentYear = new Date().getFullYear();
 
   return (
-    <footer className="border-t border-white/10 relative overflow-hidden bg-black/40 py-8">
-      {/* Ambient Gradient Mesh Background */}
-      <div className="absolute inset-0 pointer-events-none opacity-[0.15] mix-blend-screen bg-[radial-gradient(circle_at_50%_120%,#D4AF37,transparent_50%)] animate-pulse duration-[8s]" />
-      <div className="absolute inset-0 pointer-events-none opacity-[0.03] bg-[radial-gradient(circle_at_20%_20%,#fff,transparent_30%)]" />
+    <footer className="border-t border-[#e8e7e1] bg-[#f7f5f0] py-10 text-[#34433b]">
+      <div className="mx-auto flex max-w-[1440px] flex-col items-center justify-between gap-6 px-5 sm:flex-row sm:px-8 lg:px-12">
+        <Link href="/" aria-label="Mehmaan Easy home" className="flex items-center gap-2.5">
+          <img
+            src="/logo.png"
+            alt=""
+            className="h-8 w-8 rounded-lg object-contain"
+          />
+          <span className="text-sm font-semibold tracking-[-0.03em]">
+            mehmaan<span className="text-[#bd604a]">easy</span>
+          </span>
+        </Link>
 
-      <div className="max-w-7xl mx-auto px-5 md:px-8 relative z-10">
-        <div className="flex flex-col md:flex-row items-center justify-between gap-6">
-          <div className="flex items-center gap-3">
-            <img src="/logo.png" alt="EV Logo" className="w-6 h-6 object-contain rounded-md" />
-            <span className="font-display font-800 text-sm tracking-wider text-transparent bg-clip-text bg-gradient-to-r from-cream via-gold-soft to-gold">
-              EV
-            </span>
-          </div>
+        <nav className="flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-sm text-[#65716a]">
+          <Link href="/" className="transition-colors hover:text-[#bd604a]">
+            Discover
+          </Link>
+          <Link
+            href="/properties"
+            className="transition-colors hover:text-[#bd604a]"
+          >
+            Find a stay
+          </Link>
+          <Link href="/about" className="transition-colors hover:text-[#bd604a]">
+            Our story
+          </Link>
+          <Link href="/post" className="transition-colors hover:text-[#bd604a]">
+            Become a host
+          </Link>
+        </nav>
 
-          <nav className="flex flex-wrap items-center justify-center gap-x-6 gap-y-1 text-xs text-cream/60">
-            <Link href="/" className="hover:text-gold transition-colors">
-              Home
-            </Link>
-            <Link href="/properties" className="hover:text-gold transition-colors">
-              Visit Properties
-            </Link>
-            <Link href="/about" className="hover:text-gold transition-colors">
-              About Us
-            </Link>
-          </nav>
-
-          <p className="text-[10px] text-cream/40 text-center md:text-right">
-            &copy; {currentYear} Mehmaan Easy. All rights reserved.
-          </p>
-        </div>
+        <p className="text-xs text-[#758078]">
+          © {currentYear} Mehmaan Easy. Stay better. Book easier.
+        </p>
       </div>
     </footer>
   );
 }
-

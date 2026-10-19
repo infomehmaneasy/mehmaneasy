@@ -1,99 +1,98 @@
 "use client";
 
+import { useState } from "react";
 import { motion } from "framer-motion";
 import Link from "next/link";
-import { BedDouble, Bath, Ruler, MapPin } from "lucide-react";
-
-const CATEGORY_LABEL = {
-  Residential: "RES",
-  Commercial: "COM",
-  Land: "LND",
-  Rental: "RNT",
-};
+import { Bath, BedDouble, Heart, MapPin } from "lucide-react";
 
 export default function PropertyCard({ property, index = 0 }) {
-  const img = property.images?.[0] || "https://images.unsplash.com/photo-1560518883-ce09059eeffa?w=800&q=60";
-  const priceLabel =
-    property.category === "Rental"
-      ? `₹${Number(property.price).toLocaleString("en-IN")}/mo`
-      : `₹${Number(property.price).toLocaleString("en-IN")}`;
+  const [saved, setSaved] = useState(false);
+  const image =
+    property.images?.[0] ||
+    "https://images.unsplash.com/photo-1560518883-ce09059eeffa?auto=format&fit=crop&w=900&q=80";
+  const isRental = property.category === "Rental";
+  const price = Number(property.price || 0).toLocaleString("en-IN");
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 24 }}
+    <motion.article
+      initial={{ opacity: 0, y: 20 }}
       whileInView={{ opacity: 1, y: 0 }}
-      viewport={{ once: true, margin: "-40px" }}
-      transition={{ duration: 0.6, delay: (index % 6) * 0.05, ease: [0.22, 1, 0.36, 1] }}
-      whileHover={{ y: -6 }}
-      className="bg-[#121212] border border-white/5 rounded-3xl overflow-hidden shadow-2xl flex flex-col group transition-all duration-300"
+      viewport={{ once: true, margin: "-32px" }}
+      transition={{
+        duration: 0.55,
+        delay: (index % 4) * 0.07,
+        ease: [0.22, 1, 0.36, 1],
+      }}
+      className="group min-w-0"
     >
-      <Link href={`/property/${property.id}`} className="block relative">
-        {/* Luxury Image Preview Container */}
-        <div className="relative h-60 w-full overflow-hidden">
-          <img 
-            src={img} 
-            alt={property.title} 
-            className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" 
-            loading="lazy" 
-          />
-          <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/10 to-transparent" />
-          
-          <span className="absolute top-4 left-4 text-[9px] tracking-[0.25em] font-700 uppercase bg-black/80 text-gold-soft px-3 py-1.5 rounded-full border border-white/10 backdrop-blur-md">
-            {CATEGORY_LABEL[property.category] || "PROP"}
-          </span>
-          
-          <div className="absolute bottom-4 left-4 right-4 flex items-end justify-between">
-            <h3 className="font-display font-600 text-lg tracking-tight text-white line-clamp-1 group-hover:text-gold transition-colors duration-300">
-              {property.title}
-            </h3>
-          </div>
-        </div>
-
-        {/* Property Specs */}
-        <div className="p-5">
-          <p className="flex items-center gap-1.5 text-cream/45 text-xs">
-            <MapPin size={12} className="text-gold" /> 
-            <span>{property.city}</span>
-            {property.pincode ? <span> · {property.pincode}</span> : ""}
-          </p>
-
-          <div className="flex items-center gap-5 mt-4 text-cream/70 text-xs border-t border-white/5 pt-4">
-            {!!property.bedrooms && (
-              <span className="flex items-center gap-1.5">
-                <BedDouble size={14} className="text-cream/40" /> 
-                <span className="font-500">{property.bedrooms} beds</span>
-              </span>
-            )}
-            {!!property.bathrooms && (
-              <span className="flex items-center gap-1.5">
-                <Bath size={14} className="text-cream/40" /> 
-                <span className="font-500">{property.bathrooms} baths</span>
-              </span>
-            )}
-            {!!property.area && (
-              <span className="flex items-center gap-1.5">
-                <Ruler size={14} className="text-cream/40" /> 
-                <span className="font-500">{property.area} sqft</span>
-              </span>
-            )}
-          </div>
-        </div>
-      </Link>
-
-      {/* Luxury Bottom Perforated stub or footer */}
-      <div className="mt-auto px-5 pb-5 pt-2 flex items-center justify-between border-t border-white/5">
-        <div>
-          <p className="text-[9px] uppercase tracking-[0.2em] text-cream/40">Fare</p>
-          <p className="font-display font-700 text-gold text-lg tracking-wide">{priceLabel}</p>
-        </div>
+      <div className="relative aspect-[0.92] overflow-hidden rounded-[22px] bg-[#e8e6de]">
         <Link
-          href={`/property/${property.id}`}
-          className="text-xs font-700 px-4 py-2 rounded-full bg-gold text-ink hover:bg-white hover:text-ink transition-all duration-300 transform active:scale-95 shadow-md"
+          href={`/property/${property.id || property._id}`}
+          aria-label={`View ${property.title}`}
+          className="absolute inset-0"
         >
-          View Details
+          <img
+            src={image}
+            alt={property.title || "Stay"}
+            loading="lazy"
+            className="h-full w-full object-cover transition-transform duration-700 ease-out group-hover:scale-[1.045]"
+          />
+          <span className="absolute inset-0 bg-gradient-to-t from-black/35 via-transparent to-transparent opacity-70" />
         </Link>
+        {property.isFeatured && (
+          <span className="absolute left-3 top-3 rounded-full bg-white/95 px-3 py-1.5 text-[11px] font-semibold text-[#29352f] shadow-sm">
+            Featured stay
+          </span>
+        )}
+        <button
+          type="button"
+          aria-label={saved ? "Remove from saved stays" : "Save this stay"}
+          aria-pressed={saved}
+          onClick={() => setSaved((value) => !value)}
+          className="absolute right-3 top-3 flex h-10 w-10 items-center justify-center rounded-full bg-black/20 text-white backdrop-blur-sm transition hover:scale-105 hover:bg-black/35"
+        >
+          <Heart
+            size={21}
+            strokeWidth={1.8}
+            className={saved ? "fill-[#bd604a] text-[#bd604a]" : "fill-black/20"}
+          />
+        </button>
       </div>
-    </motion.div>
+
+      <Link
+        href={`/property/${property.id || property._id}`}
+        className="mt-3 block"
+      >
+        <div className="flex items-start justify-between gap-3">
+          <h3 className="line-clamp-1 text-sm font-semibold text-[#29352f] transition-colors group-hover:text-[#bd604a]">
+            {property.title || "A welcoming stay"}
+          </h3>
+        </div>
+        <p className="mt-1 flex items-center gap-1 text-xs text-[#707a73]">
+          <MapPin size={13} className="shrink-0" />
+          <span className="truncate">
+            {property.city}
+          </span>
+        </p>
+        <div className="mt-2 flex items-center gap-3 text-xs text-[#707a73]">
+          {!!property.bedrooms && (
+            <span className="inline-flex items-center gap-1">
+              <BedDouble size={14} /> {property.bedrooms} beds
+            </span>
+          )}
+          {!!property.bathrooms && (
+            <span className="inline-flex items-center gap-1">
+              <Bath size={14} /> {property.bathrooms} baths
+            </span>
+          )}
+        </div>
+        <p className="mt-2 text-sm text-[#29352f]">
+          <span className="font-semibold">₹{price}</span>{" "}
+          <span className="text-[#707a73]">
+            {isRental ? "per month" : "asking price"}
+          </span>
+        </p>
+      </Link>
+    </motion.article>
   );
 }
-

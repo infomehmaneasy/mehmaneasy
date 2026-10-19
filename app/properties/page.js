@@ -2,20 +2,20 @@
 
 import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Search, SlidersHorizontal, MapPin, Grid, Layers, Compass } from "lucide-react";
+import { Search, SlidersHorizontal, Compass } from "lucide-react";
 import Navbar from "@/components/Navbar";
 import PropertyCard from "@/components/PropertyCard";
-
-const CATEGORIES = ["All", "Residential", "Commercial", "Land", "Rental"];
 
 export default function PropertiesListingPage() {
   const [properties, setProperties] = useState([]);
   const [filteredProperties, setFilteredProperties] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState("");
+  const [reloadKey, setReloadKey] = useState(0);
 
   // Filters State
   const [keyword, setKeyword] = useState("");
-  const [category, setCategory] = useState("All");
+  const category = "Rental";
   const [minPrice, setMinPrice] = useState("");
   const [maxPrice, setMaxPrice] = useState("");
   const [bedrooms, setBedrooms] = useState("");
@@ -23,24 +23,50 @@ export default function PropertiesListingPage() {
 
   const [expanded, setExpanded] = useState(false);
   const [sortBy, setSortBy] = useState("newest");
+  const [tripDetails, setTripDetails] = useState(null);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    setKeyword(params.get("keyword") || "");
+    setMinPrice(params.get("minPrice") || "");
+    setMaxPrice(params.get("maxPrice") || "");
+    const checkIn = params.get("checkIn");
+    const checkOut = params.get("checkOut");
+    const guests = params.get("guests");
+    if (checkIn || checkOut || guests) {
+      setTripDetails({ checkIn, checkOut, guests });
+    }
+  }, []);
 
   // Fetch properties
   useEffect(() => {
+    let active = true;
+    setLoading(true);
+    setLoadError("");
+
     (async () => {
       try {
         const res = await fetch("/api/properties");
-        if (res.ok) {
-          const data = await res.json();
+        if (!res.ok) {
+          throw new Error(`Property request failed (${res.status})`);
+        }
+        const data = await res.json();
+        if (active) {
           setProperties(data.properties || []);
           setFilteredProperties(data.properties || []);
         }
       } catch (e) {
         console.error("Error loading properties:", e);
+        if (active) setLoadError("We couldn’t load the stay collection right now.");
       } finally {
-        setLoading(false);
+        if (active) setLoading(false);
       }
     })();
-  }, []);
+
+    return () => {
+      active = false;
+    };
+  }, [reloadKey]);
 
   // Filter & Sort Logic
   useEffect(() => {
@@ -97,85 +123,58 @@ export default function PropertiesListingPage() {
   }, [properties, keyword, category, minPrice, maxPrice, bedrooms, minArea, sortBy]);
 
   return (
-    <main className="min-h-screen bg-ink text-cream relative">
+    <main className="relative min-h-screen bg-[#fffdf9] text-[#24302b]">
       <Navbar />
 
-      {/* Blueprint lines backdrop */}
-      <div className="absolute inset-0 opacity-[0.02] pointer-events-none select-none mix-blend-screen">
-        <svg className="w-full h-full" xmlns="http://www.w3.org/2000/svg">
-          <defs>
-            <pattern id="listing-grid" width="40" height="40" patternUnits="userSpaceOnUse">
-              <path d="M 40 0 L 0 0 0 40" fill="none" stroke="white" strokeWidth="1" />
-            </pattern>
-          </defs>
-          <rect width="100%" height="100%" fill="url(#listing-grid)" />
-        </svg>
-      </div>
-
       {/* Header section */}
-      <section className="max-w-7xl mx-auto px-5 md:px-8 pt-12 pb-16 relative z-10">
-        <div className="flex flex-col md:flex-row md:items-end justify-between border-b border-white/5 pb-8 mb-12">
+      <section className="relative z-10 mx-auto max-w-[1440px] px-5 pb-16 pt-32 sm:px-8 lg:px-12">
+        <div className="mb-9 flex flex-col justify-between border-b border-[#e8e7e1] pb-8 md:flex-row md:items-end">
           <div>
-            <p className="text-[10px] tracking-[0.25em] uppercase text-gold font-700 mb-2">Our Collection</p>
-            <h1 className="font-display font-700 text-4xl md:text-6xl leading-[0.95] text-cream italic">
-              Explore Luxury <br />
-              <span className="font-sans font-800 not-italic text-transparent bg-clip-text bg-gradient-to-r from-cream via-gold-soft to-gold">
-                Residences.
-              </span>
+            <p className="mb-2 text-xs font-semibold uppercase tracking-[0.16em] text-[#bd604a]">The collection</p>
+            <h1 className="text-4xl font-semibold leading-[1.02] tracking-[-0.04em] text-[#26322c] md:text-6xl">
+              Find your next <span className="font-serif font-normal italic">favourite stay.</span>
             </h1>
           </div>
-          <p className="text-xs text-cream/45 max-w-xs mt-4 md:mt-0 leading-relaxed font-body">
-            Browse through our cinematic directory of handpicked luxury estates, properties, and rental sanctuaries.
+          <p className="mt-4 max-w-sm text-sm leading-6 text-[#707a73] md:mt-0">
+            Search the available homes by destination, then explore the details
+            that make each one feel special.
           </p>
         </div>
 
         {/* Sticky-ready premium search and filter bar container */}
-        <div className="sticky top-20 z-40 bg-ink/80 backdrop-blur-xl border border-white/5 rounded-3xl p-4 shadow-xl mb-12">
+        <div className="sticky top-20 z-40 mb-10 rounded-3xl border border-[#e8e7e1] bg-white/95 p-4 shadow-[0_12px_35px_rgba(32,45,37,0.1)] backdrop-blur-xl">
           <div className="flex flex-col lg:flex-row gap-4 items-center">
             {/* Search Input */}
-            <div className="w-full lg:flex-1 flex items-center gap-2.5 bg-white/5 rounded-2xl px-4 py-3 border border-white/5">
-              <Search size={16} className="text-cream/55" />
+            <div className="w-full flex items-center gap-2.5 rounded-2xl border border-[#e8e7e1] bg-[#fffdf9] px-4 py-3 lg:flex-1">
+              <Search size={16} className="text-[#bd604a]" />
               <input
                 value={keyword}
                 onChange={(e) => setKeyword(e.target.value)}
-                placeholder="Search by locality, city, or property name..."
-                className="bg-transparent outline-none w-full text-cream placeholder:text-cream/35 text-xs font-500"
+                placeholder="Where do you want to go?"
+                className="w-full bg-transparent text-sm text-[#26322c] outline-none placeholder:text-[#858d87]"
               />
             </div>
 
-            {/* Categories horizontal list */}
-            <div className="flex gap-2 overflow-x-auto w-full lg:w-auto pb-1 lg:pb-0 scrollbar-none">
-              {CATEGORIES.map((c) => (
-                <button
-                  key={c}
-                  onClick={() => setCategory(c)}
-                  className={`px-4 py-2 rounded-2xl text-[11px] font-700 whitespace-nowrap uppercase tracking-wider transition-all duration-300 ${
-                    category === c
-                      ? "bg-gold text-ink"
-                      : "bg-white/5 text-cream/70 hover:bg-white/10"
-                  }`}
-                >
-                  {c}
-                </button>
-              ))}
-            </div>
+            <span className="whitespace-nowrap rounded-full bg-[#f4f2ed] px-4 py-2 text-xs font-semibold text-[#526058]">
+              Monthly stays
+            </span>
 
             {/* More filters and sorting triggers */}
             <div className="flex items-center gap-2 w-full lg:w-auto">
               <select
                 value={sortBy}
                 onChange={(e) => setSortBy(e.target.value)}
-                className="flex-1 lg:flex-none bg-white/5 border border-white/5 text-cream/80 text-[11px] font-700 uppercase tracking-wider px-4 py-2.5 rounded-2xl outline-none cursor-pointer focus:border-gold"
+                className="flex-1 cursor-pointer rounded-2xl border border-[#e8e7e1] bg-white px-4 py-2.5 text-xs font-semibold text-[#34433b] outline-none focus:border-[#bd604a] lg:flex-none"
               >
-                <option value="newest" className="bg-[#121212]">Newest Listing</option>
-                <option value="price_asc" className="bg-[#121212]">Price: Low to High</option>
-                <option value="price_desc" className="bg-[#121212]">Price: High to Low</option>
-                <option value="area_desc" className="bg-[#121212]">Largest Area</option>
+                <option value="newest">Newest listing</option>
+                <option value="price_asc">Price: low to high</option>
+                <option value="price_desc">Price: high to low</option>
+                <option value="area_desc">Largest area</option>
               </select>
 
               <button
                 onClick={() => setExpanded(!expanded)}
-                className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-2xl border border-white/10 text-cream/80 text-[11px] font-700 uppercase tracking-wider hover:border-gold hover:text-gold transition-colors"
+                className="flex items-center justify-center gap-2 rounded-2xl border border-[#dedfd8] px-4 py-2.5 text-xs font-semibold text-[#34433b] transition-colors hover:border-[#bd604a] hover:text-[#bd604a]"
               >
                 <SlidersHorizontal size={13} />
                 <span>Filters</span>
@@ -193,39 +192,39 @@ export default function PropertiesListingPage() {
                 transition={{ duration: 0.3, ease: "easeInOut" }}
                 className="overflow-hidden"
               >
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 pt-4 mt-4 border-t border-white/10">
-                  <label className="text-[10px] uppercase tracking-wider text-cream/50 flex flex-col gap-1.5 font-700">
-                    Min Price (₹)
+                <div className="mt-4 grid grid-cols-2 gap-4 border-t border-[#ecebe6] pt-4 md:grid-cols-4">
+                  <label className="flex flex-col gap-1.5 text-[10px] font-semibold uppercase tracking-wider text-[#65716a]">
+                    Min monthly price (₹)
                     <input
                       type="number"
-                      className="rounded-xl bg-black/40 border border-white/10 px-3 py-2 text-xs text-cream outline-none focus:border-gold font-body"
+                      className="rounded-xl border border-[#e0e1dc] bg-white px-3 py-2 text-sm text-[#26322c] outline-none focus:border-[#bd604a]"
                       value={minPrice}
                       onChange={(e) => setMinPrice(e.target.value)}
                     />
                   </label>
-                  <label className="text-[10px] uppercase tracking-wider text-cream/50 flex flex-col gap-1.5 font-700">
-                    Max Price (₹)
+                  <label className="flex flex-col gap-1.5 text-[10px] font-semibold uppercase tracking-wider text-[#65716a]">
+                    Max monthly price (₹)
                     <input
                       type="number"
-                      className="rounded-xl bg-black/40 border border-white/10 px-3 py-2 text-xs text-cream outline-none focus:border-gold font-body"
+                      className="rounded-xl border border-[#e0e1dc] bg-white px-3 py-2 text-sm text-[#26322c] outline-none focus:border-[#bd604a]"
                       value={maxPrice}
                       onChange={(e) => setMaxPrice(e.target.value)}
                     />
                   </label>
-                  <label className="text-[10px] uppercase tracking-wider text-cream/50 flex flex-col gap-1.5 font-700">
-                    Min Bedrooms
+                  <label className="flex flex-col gap-1.5 text-[10px] font-semibold uppercase tracking-wider text-[#65716a]">
+                    Min bedrooms
                     <input
                       type="number"
-                      className="rounded-xl bg-black/40 border border-white/10 px-3 py-2 text-xs text-cream outline-none focus:border-gold font-body"
+                      className="rounded-xl border border-[#e0e1dc] bg-white px-3 py-2 text-sm text-[#26322c] outline-none focus:border-[#bd604a]"
                       value={bedrooms}
                       onChange={(e) => setBedrooms(e.target.value)}
                     />
                   </label>
-                  <label className="text-[10px] uppercase tracking-wider text-cream/50 flex flex-col gap-1.5 font-700">
-                    Min Area (sqft)
+                  <label className="flex flex-col gap-1.5 text-[10px] font-semibold uppercase tracking-wider text-[#65716a]">
+                    Min area (sqft)
                     <input
                       type="number"
-                      className="rounded-xl bg-black/40 border border-white/10 px-3 py-2 text-xs text-cream outline-none focus:border-gold font-body"
+                      className="rounded-xl border border-[#e0e1dc] bg-white px-3 py-2 text-sm text-[#26322c] outline-none focus:border-[#bd604a]"
                       value={minArea}
                       onChange={(e) => setMinArea(e.target.value)}
                     />
@@ -236,23 +235,53 @@ export default function PropertiesListingPage() {
           </AnimatePresence>
         </div>
 
+        {tripDetails && (
+          <p className="-mt-5 mb-8 text-xs leading-5 text-[#758078]">
+            Search details: {tripDetails.checkIn || "Any check-in"} to{" "}
+            {tripDetails.checkOut || "Any check-out"} ·{" "}
+            {tripDetails.guests || "2"}{" "}
+            {tripDetails.guests === "1" ? "guest" : "guests"}. Calendar
+            availability is not connected yet.
+          </p>
+        )}
+
         {/* Properties Grid Display */}
         {loading ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
+          <div className="grid grid-cols-1 gap-8 sm:grid-cols-2 lg:grid-cols-3">
             {Array.from({ length: 6 }).map((_, i) => (
               <div key={i} className="h-96 rounded-3xl bg-white/5 animate-pulse" />
             ))}
           </div>
+        ) : loadError ? (
+          <div
+            role="alert"
+            className="rounded-3xl border border-[#e5c6bb] bg-white px-6 py-14 text-center"
+          >
+            <Compass size={40} className="mx-auto mb-4 text-[#bd604a]" />
+            <p className="font-display text-xl italic text-[#26322c]">
+              We hit a little travel snag
+            </p>
+            <p className="mx-auto mt-2 max-w-sm text-sm leading-relaxed text-[#65716a]">
+              {loadError} Please try again in a moment.
+            </p>
+            <button
+              type="button"
+              onClick={() => setReloadKey((key) => key + 1)}
+              className="mt-5 rounded-full bg-[#20372f] px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-[#2d4a40]"
+            >
+              Try again
+            </button>
+          </div>
         ) : filteredProperties.length === 0 ? (
-          <div className="text-center py-24 text-cream/60">
-            <Compass size={40} className="text-gold mx-auto mb-4 animate-bounce" />
-            <p className="font-display text-xl italic text-cream">No properties found</p>
-            <p className="text-xs mt-2 font-body max-w-sm mx-auto leading-relaxed">
-              We couldn't find any matches. Try modifying your search keywords or broadening your filter criteria.
+          <div className="py-24 text-center text-[#65716a]">
+            <Compass size={40} className="mx-auto mb-4 text-[#bd604a]" />
+            <p className="font-display text-xl italic text-[#26322c]">No stays found</p>
+            <p className="mx-auto mt-2 max-w-sm text-sm leading-relaxed">
+              We couldn’t find any matches. Try another destination or broaden your filters.
             </p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
+          <div className="grid grid-cols-1 gap-8 sm:grid-cols-2 lg:grid-cols-3">
             {filteredProperties.map((p, idx) => (
               <motion.div
                 key={p.id || idx}

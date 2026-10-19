@@ -3,7 +3,6 @@
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import { motion } from "framer-motion";
-import { doc, getDoc } from "firebase/firestore";
 import { BedDouble, Bath, Ruler, MapPin, CheckCircle } from "lucide-react";
 import Navbar from "@/components/Navbar";
 import EnquiryModal from "@/components/EnquiryModal";
@@ -46,7 +45,7 @@ export default function PropertyDetailPage() {
     return (
       <main className="min-h-screen bg-ink">
         <Navbar />
-        <p className="text-center text-cream/50 py-24 font-display text-2xl italic">Luxury property not found.</p>
+        <p className="text-center text-cream/50 py-24 font-display text-2xl italic">Stay not found.</p>
       </main>
     );
   }
@@ -112,7 +111,7 @@ export default function PropertyDetailPage() {
               <h1 className="font-display font-700 text-3xl md:text-5xl leading-tight text-cream italic">{property.title}</h1>
               <p className="flex items-center gap-1.5 text-cream/45 text-sm mt-3 font-body">
                 <MapPin size={14} className="text-gold" /> 
-                <span>{property.address}, {property.city} {property.pincode}</span>
+                <span>Approximate location · {property.city}</span>
               </p>
 
               {/* Luxury Specs HUD */}
@@ -160,7 +159,9 @@ export default function PropertyDetailPage() {
             {/* Premium Action Card */}
             <div className="bg-[#121212] border border-white/5 rounded-3xl p-6 h-fit sticky top-24 shadow-2xl">
               <div>
-                <p className="text-[10px] uppercase tracking-[0.25em] text-cream/40 mb-1">Valuation</p>
+                <p className="text-[10px] uppercase tracking-[0.25em] text-cream/40 mb-1">
+                  {property.category === "Rental" ? "Monthly rent" : "Listing price"}
+                </p>
                 <p className="font-display font-700 text-gold text-3xl tracking-wide">
                   ₹{Number(property.price).toLocaleString("en-IN")}
                   {property.category === "Rental" && <span className="text-xs font-500 font-sans text-cream/50"> / mo</span>}
@@ -172,10 +173,10 @@ export default function PropertyDetailPage() {
                   onClick={() => setShowEnquiry(true)}
                   className="w-full py-3 rounded-full bg-gold text-ink font-700 text-xs tracking-wider uppercase hover:bg-white hover:text-ink transition-all duration-300 transform active:scale-95 shadow-lg"
                 >
-                  Acquire & Enquire
+                  Enquire about this stay
                 </button>
                 <p className="text-[10px] text-cream/40 text-center font-body">
-                  Listing Ref ID: {property.ownerEmail}
+                  Exact address details are shared after booking.
                 </p>
               </div>
             </div>
@@ -187,4 +188,3 @@ export default function PropertyDetailPage() {
     </main>
   );
 }
-
