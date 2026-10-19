@@ -3,39 +3,62 @@
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import { motion } from "framer-motion";
-import { BedDouble, Bath, Ruler, MapPin, CheckCircle } from "lucide-react";
+import {
+  BadgeCheck,
+  Bath,
+  BedDouble,
+  CalendarDays,
+  CheckCircle,
+  Heart,
+  MapPin,
+  Users,
+} from "lucide-react";
 import Navbar from "@/components/Navbar";
 import EnquiryModal from "@/components/EnquiryModal";
-import { db } from "@/lib/firebase";
 
 export default function PropertyDetailPage() {
   const { id } = useParams();
   const [property, setProperty] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
   const [showEnquiry, setShowEnquiry] = useState(false);
   const [activeImg, setActiveImg] = useState(0);
+  const [checkIn, setCheckIn] = useState("");
+  const [checkOut, setCheckOut] = useState("");
+  const [guests, setGuests] = useState(2);
 
   useEffect(() => {
-    (async () => {
+    let active = true;
+    setLoading(true);
+    setError("");
+
+    async function loadProperty() {
       try {
-        const res = await fetch(`/api/properties/${id}`);
-        if (res.ok) {
-          const data = await res.json();
-          setProperty({ ...data.property, id: data.property._id });
+        const response = await fetch(`/api/properties/${id}`);
+        const data = await response.json();
+        if (!response.ok) {
+          throw new Error(data.error || "This stay could not be found.");
         }
-      } catch (e) {
-        console.error("Error loading property from MongoDB:", e);
+        if (active) setProperty(data.property);
+      } catch (loadError) {
+        if (active) setError(loadError.message || "Unable to load this stay.");
+      } finally {
+        if (active) setLoading(false);
       }
-      setLoading(false);
-    })();
+    }
+
+    if (id) loadProperty();
+    return () => {
+      active = false;
+    };
   }, [id]);
 
   if (loading) {
     return (
-      <main className="min-h-screen bg-ink">
+      <main className="min-h-screen bg-[#fffdf9]">
         <Navbar />
-        <div className="max-w-5xl mx-auto px-5 py-24 flex items-center justify-center">
-          <div className="w-10 h-10 border-4 border-gold/20 border-t-gold rounded-full animate-spin" />
+        <div className="mx-auto max-w-5xl px-5 py-40 text-center text-[#65716a]">
+          Loading stay details…
         </div>
       </main>
     );
@@ -43,148 +66,275 @@ export default function PropertyDetailPage() {
 
   if (!property) {
     return (
-      <main className="min-h-screen bg-ink">
+      <main className="min-h-screen bg-[#fffdf9] text-[#24302b]">
         <Navbar />
-        <p className="text-center text-cream/50 py-24 font-display text-2xl italic">Stay not found.</p>
+        <div className="mx-auto max-w-2xl px-5 py-40 text-center">
+          <h1 className="text-3xl font-semibold">Stay not available</h1>
+          <p className="mt-3 text-sm text-[#65716a]">
+            {error || "This listing may have been removed or is still being reviewed."}
+          </p>
+        </div>
       </main>
     );
   }
 
-  const images = property.images?.length
-    ? property.images
-    : ["https://images.unsplash.com/photo-1560518883-ce09059eeffa?w=1200&q=60"];
+  const images = property.images?.length ? property.images : [];
+  const priceBasis =
+    property.priceBasis || (property.category === "Rental" ? "month" : "listing");
+  const tripDatesValid =
+    !checkIn || !checkOut || new Date(checkOut) > new Date(checkIn);
+  const stayMessage = [
+    checkIn && checkOut
+      ? `I am interested in ${checkIn} to ${checkOut}`
+      : "I would like to ask about availability",
+    `${guests} ${guests === 1 ? "guest" : "guests"}`,
+  ].join(". ");
 
   return (
-    <main className="min-h-screen bg-ink text-cream relative">
+    <main className="min-h-screen bg-[#fffdf9] text-[#24302b]">
       <Navbar />
-
-      {/* Blueprint lines on detail page */}
-      <div className="absolute inset-0 opacity-[0.02] pointer-events-none select-none mix-blend-screen">
-        <svg className="w-full h-full" xmlns="http://www.w3.org/2000/svg">
-          <defs>
-            <pattern id="detail-grid" width="50" height="50" patternUnits="userSpaceOnUse">
-              <path d="M 50 0 L 0 0 0 50" fill="none" stroke="white" strokeWidth="1" />
-            </pattern>
-          </defs>
-          <rect width="100%" height="100%" fill="url(#detail-grid)" />
-        </svg>
-      </div>
-
-      <section className="max-w-5xl mx-auto px-5 md:px-8 py-10 relative z-10">
-        <motion.div 
-          initial={{ opacity: 0, y: 20 }} 
-          animate={{ opacity: 1, y: 0 }} 
-          transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
+      <section className="mx-auto max-w-[1200px] px-5 pb-20 pt-32 sm:px-8">
+        <motion.div
+          initial={{ opacity: 0, y: 18 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.55, ease: [0.22, 1, 0.36, 1] }}
         >
-          {/* Main Visuals with perspective */}
-          <div className="relative rounded-3xl overflow-hidden h-[360px] md:h-[480px] border border-white/10 shadow-2xl">
-            <img src={images[activeImg]} alt={property.title} className="w-full h-full object-cover" />
-            <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
-            
-            <div className="absolute bottom-6 left-6 md:left-8">
-              <span className="text-[10px] tracking-[0.25em] uppercase text-gold font-700 bg-black/80 px-3 py-1.5 rounded-full border border-white/15 backdrop-blur-md">
-                {property.category}
-              </span>
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <div>
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="inline-flex items-center gap-1.5 rounded-full bg-[#edf5ef] px-3 py-1.5 text-xs font-semibold text-[#376247]">
+                  <BadgeCheck size={14} />
+                  Mehmaan Easy verified
+                </span>
+                {property.stayTier && (
+                  <span className="rounded-full bg-[#f8eee8] px-3 py-1.5 text-xs font-semibold text-[#9b503e]">
+                    {property.stayTier} collection
+                  </span>
+                )}
+              </div>
+              <h1 className="mt-4 text-3xl font-semibold leading-tight tracking-[-0.035em] sm:text-4xl">
+                {property.title}
+              </h1>
+              <p className="mt-2 flex items-center gap-1.5 text-sm text-[#65716a]">
+                <MapPin size={15} className="text-[#bd604a]" />
+                Approximate location · {property.city}
+              </p>
             </div>
+            {property.rating && (
+              <p className="flex items-center gap-1 text-sm font-semibold">
+                <span aria-hidden="true">★</span> {Number(property.rating).toFixed(1)}
+                {property.reviewsCount > 0 && (
+                  <span className="font-normal text-[#65716a]">
+                    ({property.reviewsCount} reviews)
+                  </span>
+                )}
+              </p>
+            )}
           </div>
 
-          {/* Image Selectors */}
-          {images.length > 1 && (
-            <div className="flex gap-2 mt-4 overflow-x-auto py-1">
-              {images.map((img, i) => (
+          {images.length > 0 ? (
+            <div className="mt-7 grid h-[360px] grid-cols-2 gap-2 overflow-hidden rounded-[24px] bg-[#eeeae2] sm:h-[480px] md:grid-cols-4">
+              <button
+                type="button"
+                onClick={() => setActiveImg(0)}
+                className="col-span-2 row-span-2 overflow-hidden"
+                aria-label="View main property photo"
+              >
+                <img
+                  src={images[activeImg] || images[0]}
+                  alt={property.title}
+                  className="h-full w-full object-cover transition-transform duration-500 hover:scale-[1.02]"
+                />
+              </button>
+              {images.slice(1, 5).map((image, index) => (
                 <button
-                  key={i}
-                  onClick={() => setActiveImg(i)}
-                  className={`w-20 h-20 rounded-xl overflow-hidden border-2 flex-shrink-0 transition-all duration-300 ${
-                    i === activeImg ? "border-gold scale-95 shadow-md" : "border-white/5 opacity-60 hover:opacity-100"
+                  type="button"
+                  key={image}
+                  onClick={() => setActiveImg(index + 1)}
+                  className="hidden overflow-hidden md:block"
+                  aria-label={`View property photo ${index + 2}`}
+                >
+                  <img
+                    src={image}
+                    alt={`${property.title}, photo ${index + 2}`}
+                    className="h-full w-full object-cover transition-transform duration-500 hover:scale-[1.04]"
+                  />
+                </button>
+              ))}
+              {images.length > 1 && (
+                <button
+                  type="button"
+                  onClick={() => setActiveImg((activeImg + 1) % images.length)}
+                  className="absolute sr-only"
+                >
+                  Next photo
+                </button>
+              )}
+            </div>
+          ) : (
+            <div className="mt-7 flex h-64 items-center justify-center rounded-[24px] bg-[#f0eee8] text-sm text-[#758078]">
+              Photos are being prepared for this stay.
+            </div>
+          )}
+
+          {images.length > 1 && (
+            <div className="mt-3 flex gap-2 overflow-x-auto">
+              {images.map((image, index) => (
+                <button
+                  key={image}
+                  type="button"
+                  onClick={() => setActiveImg(index)}
+                  aria-label={`Select photo ${index + 1}`}
+                  aria-pressed={activeImg === index}
+                  className={`h-16 w-20 shrink-0 overflow-hidden rounded-xl border-2 ${
+                    activeImg === index ? "border-[#bd604a]" : "border-transparent"
                   }`}
                 >
-                  <img src={img} className="w-full h-full object-cover" alt="" />
+                  <img src={image} alt="" className="h-full w-full object-cover" />
                 </button>
               ))}
             </div>
           )}
 
-          {/* Details & Action grid */}
-          <div className="grid md:grid-cols-[1.6fr_1fr] gap-8 mt-10">
+          <div className="mt-9 grid gap-10 lg:grid-cols-[1fr_360px]">
             <div>
-              <h1 className="font-display font-700 text-3xl md:text-5xl leading-tight text-cream italic">{property.title}</h1>
-              <p className="flex items-center gap-1.5 text-cream/45 text-sm mt-3 font-body">
-                <MapPin size={14} className="text-gold" /> 
-                <span>Approximate location · {property.city}</span>
-              </p>
-
-              {/* Luxury Specs HUD */}
-              <div className="flex items-center gap-8 mt-8 text-cream/80 text-sm border-y border-white/5 py-4">
-                {!!property.bedrooms && (
-                  <span className="flex items-center gap-2">
-                    <BedDouble size={16} className="text-gold-soft" /> 
-                    <span className="font-500">{property.bedrooms} Beds</span>
+              <div className="border-b border-[#e8e7e1] pb-6">
+                <h2 className="text-xl font-semibold text-[#29352f]">
+                  {property.propertyType || "A welcoming stay"} in {property.city}
+                </h2>
+                <div className="mt-3 flex flex-wrap gap-x-5 gap-y-2 text-sm text-[#65716a]">
+                  <span className="inline-flex items-center gap-1.5">
+                    <Users size={16} /> Sleeps {property.capacity || 2}
                   </span>
-                )}
-                {!!property.bathrooms && (
-                  <span className="flex items-center gap-2">
-                    <Bath size={16} className="text-gold-soft" /> 
-                    <span className="font-500">{property.bathrooms} Baths</span>
+                  <span className="inline-flex items-center gap-1.5">
+                    <BedDouble size={16} /> {property.bedrooms || 0} bedrooms
                   </span>
-                )}
-                <span className="flex items-center gap-2">
-                  <Ruler size={16} className="text-gold-soft" /> 
-                  <span className="font-500">{property.area} Sqft</span>
-                </span>
+                  <span className="inline-flex items-center gap-1.5">
+                    <Bath size={16} /> {property.bathrooms || 0} bathrooms
+                  </span>
+                </div>
               </div>
 
-              {/* Description */}
-              <div className="mt-8">
-                <p className="text-xs uppercase tracking-[0.2em] text-gold font-700 mb-3">Architectural Vision</p>
-                <p className="text-cream/65 text-sm leading-relaxed font-body">{property.description}</p>
+              <div className="border-b border-[#e8e7e1] py-7">
+                <h2 className="text-lg font-semibold">About this stay</h2>
+                <p className="mt-3 whitespace-pre-line text-sm leading-7 text-[#65716a]">
+                  {property.description}
+                </p>
               </div>
 
-              {/* Amenities */}
               {property.amenities?.length > 0 && (
-                <div className="mt-8">
-                  <p className="text-xs uppercase tracking-[0.2em] text-gold font-700 mb-4">Features & Conveniences</p>
-                  <div className="grid grid-cols-2 gap-3">
-                    {property.amenities.map((a) => (
-                      <span key={a} className="flex items-center gap-2.5 text-sm text-cream/70">
-                        <CheckCircle size={14} className="text-gold" /> 
-                        <span className="font-body text-xs">{a}</span>
+                <div className="border-b border-[#e8e7e1] py-7">
+                  <h2 className="text-lg font-semibold">What this place offers</h2>
+                  <div className="mt-5 grid grid-cols-1 gap-4 sm:grid-cols-2">
+                    {property.amenities.map((amenity) => (
+                      <span key={amenity} className="flex items-center gap-3 text-sm text-[#526058]">
+                        <CheckCircle size={17} className="text-[#5b8a68]" />
+                        {amenity}
                       </span>
                     ))}
                   </div>
                 </div>
               )}
+
+              <div className="py-7">
+                <h2 className="text-lg font-semibold">Location</h2>
+                <div className="mt-4 flex min-h-40 items-center justify-center rounded-2xl bg-[#e9eee9] p-5 text-center">
+                  <div>
+                    <MapPin className="mx-auto text-[#bd604a]" size={23} />
+                    <p className="mt-2 text-sm font-semibold text-[#34433b]">
+                      Approximate area · {property.city}
+                    </p>
+                    <p className="mt-1 text-xs text-[#65716a]">
+                      Exact address and map details are shared after a confirmed booking.
+                    </p>
+                  </div>
+                </div>
+              </div>
             </div>
 
-            {/* Premium Action Card */}
-            <div className="bg-[#121212] border border-white/5 rounded-3xl p-6 h-fit sticky top-24 shadow-2xl">
-              <div>
-                <p className="text-[10px] uppercase tracking-[0.25em] text-cream/40 mb-1">
-                  {property.category === "Rental" ? "Monthly rent" : "Listing price"}
-                </p>
-                <p className="font-display font-700 text-gold text-3xl tracking-wide">
-                  ₹{Number(property.price).toLocaleString("en-IN")}
-                  {property.category === "Rental" && <span className="text-xs font-500 font-sans text-cream/50"> / mo</span>}
-                </p>
+            <aside className="h-fit rounded-[24px] border border-[#e8e7e1] bg-white p-6 shadow-[0_12px_35px_rgba(32,45,37,0.08)] lg:sticky lg:top-28">
+              <p className="text-2xl font-semibold text-[#29352f]">
+                ₹{Number(property.price).toLocaleString("en-IN")}
+                <span className="ml-1 text-sm font-normal text-[#65716a]">
+                  {priceBasis === "night"
+                    ? "/ night"
+                    : priceBasis === "month"
+                      ? "/ month"
+                      : "/ stay"}
+                </span>
+              </p>
+              <p className="mt-2 text-xs text-[#758078]">
+                Final taxes, fees, and payment terms are not yet available online.
+              </p>
+              <div className="mt-5 grid grid-cols-2 gap-2">
+                <label className="rounded-xl border border-[#dedfd8] p-3 text-[10px] font-semibold uppercase tracking-wide text-[#65716a]">
+                  <span className="flex items-center gap-1"><CalendarDays size={13} /> Check in</span>
+                  <input
+                    type="date"
+                    value={checkIn}
+                    onChange={(event) => setCheckIn(event.target.value)}
+                    className="mt-2 w-full bg-transparent text-xs text-[#29352f] outline-none [color-scheme:light]"
+                  />
+                </label>
+                <label className="rounded-xl border border-[#dedfd8] p-3 text-[10px] font-semibold uppercase tracking-wide text-[#65716a]">
+                  <span className="flex items-center gap-1"><CalendarDays size={13} /> Check out</span>
+                  <input
+                    type="date"
+                    min={checkIn || undefined}
+                    value={checkOut}
+                    onChange={(event) => setCheckOut(event.target.value)}
+                    className="mt-2 w-full bg-transparent text-xs text-[#29352f] outline-none [color-scheme:light]"
+                  />
+                </label>
               </div>
-
-              <div className="border-t border-white/5 my-5 pt-5 flex flex-col gap-4">
-                <button
-                  onClick={() => setShowEnquiry(true)}
-                  className="w-full py-3 rounded-full bg-gold text-ink font-700 text-xs tracking-wider uppercase hover:bg-white hover:text-ink transition-all duration-300 transform active:scale-95 shadow-lg"
+              <label className="mt-2 block rounded-xl border border-[#dedfd8] p-3 text-[10px] font-semibold uppercase tracking-wide text-[#65716a]">
+                Guests
+                <select
+                  value={guests}
+                  onChange={(event) => setGuests(Number(event.target.value))}
+                  className="mt-2 w-full bg-transparent text-xs text-[#29352f] outline-none"
                 >
-                  Enquire about this stay
-                </button>
-                <p className="text-[10px] text-cream/40 text-center font-body">
-                  Exact address details are shared after booking.
+                  {Array.from({ length: Math.min(20, Math.max(1, Number(property.capacity) || 2)) }, (_, index) => index + 1).map((count) => (
+                    <option key={count} value={count}>{count} {count === 1 ? "guest" : "guests"}</option>
+                  ))}
+                </select>
+              </label>
+              {!tripDatesValid && (
+                <p role="alert" className="mt-3 text-xs text-[#a1392d]">
+                  Check-out must be after check-in.
                 </p>
+              )}
+              <button
+                type="button"
+                disabled={!tripDatesValid}
+                onClick={() => setShowEnquiry(true)}
+                className="mt-4 w-full rounded-full bg-[#bd604a] px-5 py-3 text-sm font-semibold text-white transition hover:bg-[#a94d39] disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                Ask support about this stay
+              </button>
+              <p className="mt-3 text-center text-xs leading-5 text-[#758078]">
+                This sends a question to Mehmaan Easy support, not the host.
+                Booking and payment are not enabled yet.
+              </p>
+              <div className="mt-5 flex items-start gap-2 border-t border-[#eeeeea] pt-4 text-xs leading-5 text-[#65716a]">
+                <Heart size={15} className="mt-0.5 shrink-0 text-[#bd604a]" />
+                Dates are requests only; availability is confirmed by support.
               </div>
-            </div>
+            </aside>
           </div>
         </motion.div>
       </section>
 
-      {showEnquiry && <EnquiryModal property={property} onClose={() => setShowEnquiry(false)} />}
+      {showEnquiry && (
+        <EnquiryModal
+          property={{
+            ...property,
+            id: property.id || property._id,
+          }}
+          initialMessage={stayMessage}
+          onClose={() => setShowEnquiry(false)}
+        />
+      )}
     </main>
   );
 }

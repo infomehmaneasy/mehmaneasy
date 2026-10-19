@@ -5,11 +5,10 @@ import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import Navbar from "@/components/Navbar";
 import { useAuth } from "@/context/AuthContext";
-import { auth } from "@/lib/firebase";
 
 
 export default function LoginPage() {
-  const { login, loginWithGoogle } = useAuth();
+  const { login, loginWithGoogle, refreshProfile, signOut } = useAuth();
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -21,18 +20,6 @@ export default function LoginPage() {
     setError("");
     setSubmitting(true);
     try {
-      // 1. Check if email is registered in MongoDB
-      const checkRes = await fetch("/api/auth/check", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email }),
-      });
-      const checkData = await checkRes.json();
-      if (!checkRes.ok) {
-        throw new Error(checkData.error || "Email not registered.");
-      }
-
-      // 2. Perform Firebase Auth Sign-in
       await login(email, password);
       router.push("/dashboard");
     } catch (err) {
@@ -45,28 +32,24 @@ export default function LoginPage() {
   async function handleGoogleLogin() {
     setError("");
     setSubmitting(true);
+    let signedIn = false;
     try {
       const result = await loginWithGoogle();
-      const userEmail = result.user.email;
-
-      // Check if Google email exists in MongoDB
-      const checkRes = await fetch("/api/auth/check", {
+      signedIn = true;
+      const response = await fetch("/api/auth/google-register", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: userEmail }),
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${await result.user.getIdToken()}`,
+        },
+        body: JSON.stringify({ name: result.user.displayName || "Google User" }),
       });
-      const checkData = await checkRes.json();
-      
-      if (!checkRes.ok) {
-        // Sign out from Firebase if not registered in MongoDB to prevent orphan sessions
-        const { signOut } = await import("firebase/auth");
-        await signOut(auth);
-        throw new Error(checkData.error || "Google account not registered as a seller.");
-      }
-
-
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "Unable to create your profile.");
+      await refreshProfile();
       router.push("/dashboard");
     } catch (err) {
+      if (signedIn) await signOut();
       setError(err.message?.replace("Firebase: ", "") || "Google Login failed.");
     } finally {
       setSubmitting(false);
@@ -149,4 +132,3 @@ export default function LoginPage() {
     </main>
   );
 }
-

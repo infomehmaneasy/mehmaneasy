@@ -25,35 +25,55 @@ function brandedEmail({ title, bodyHtml }) {
 
 export async function POST(req) {
   try {
-    await dbConnect();
     const { email } = await req.json();
-    const cleanEmail = (email || "").trim().toLowerCase();
-
-    if (!cleanEmail) {
-      return NextResponse.json({ error: "Email is required." }, { status: 400 });
+    const cleanEmail = typeof email === "string" ? email.trim().toLowerCase() : "";
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleanEmail) || cleanEmail.length > 254) {
+      return NextResponse.json({ error: "A valid email address is required." }, { status: 400 });
     }
 
-    const code = String(Math.floor(100000 + Math.random() * 900000));
-    const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes from now
+    const GMAIL_EMAIL = process.env.GMAIL_EMAIL;
+    const GMAIL_APP_PASSWORD = process.env.GMAIL_APP_PASSWORD;
+    if (!GMAIL_EMAIL || !GMAIL_APP_PASSWORD) {
+      return NextResponse.json(
+        { error: "Email verification is not configured. Please contact the site administrator." },
+        { status: 503 }
+      );
+    }
 
-    // Upsert OTP in MongoDB
+    await dbConnect();
+    const now = new Date();
+    const existing = await Otp.findOne({ email: cleanEmail });
+    if (existing && now.getTime() - existing.requestedAt.getTime() < 60_000) {
+      return NextResponse.json(
+        { error: "Please wait before requesting another verification code." },
+        { status: 429 }
+      );
+    }
+    const requestWindowStart = existing?.requestWindowStart || now;
+    const windowIsActive = now.getTime() - requestWindowStart.getTime() < 15 * 60_000;
+    const requestCount = windowIsActive ? (existing?.requestCount || 0) + 1 : 1;
+    if (requestCount > 3) {
+      return NextResponse.json(
+        { error: "Too many verification requests. Try again in 15 minutes." },
+        { status: 429 }
+      );
+    }
+
+    const code = String(crypto.randomInt(100000, 1000000));
     await Otp.findOneAndUpdate(
       { email: cleanEmail },
       {
         codeHash: hashCode(code),
-        expiresAt,
+        expiresAt: new Date(now.getTime() + 10 * 60 * 1000),
         attempts: 0,
+        requestedAt: now,
+        requestWindowStart: windowIsActive ? requestWindowStart : now,
+        requestCount,
       },
       { upsert: true, new: true }
     );
 
-    // Setup Nodemailer transporter using GMAIL configs from environment
-    const GMAIL_EMAIL = process.env.GMAIL_EMAIL;
-    const GMAIL_APP_PASSWORD = process.env.GMAIL_APP_PASSWORD;
-
-    if (!GMAIL_EMAIL || !GMAIL_APP_PASSWORD) {
-      console.warn("Gmail settings missing. Printing OTP to console:", code);
-    } else {
+    try {
       const transporter = nodemailer.createTransport({
         service: "gmail",
         auth: { user: GMAIL_EMAIL, pass: GMAIL_APP_PASSWORD },
@@ -72,6 +92,9 @@ export async function POST(req) {
           `,
         }),
       });
+    } catch (mailError) {
+      console.error("Unable to send email verification code:", mailError);
+      return NextResponse.json({ error: "Unable to send a verification email right now." }, { status: 502 });
     }
 
     return NextResponse.json({ sent: true });

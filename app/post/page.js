@@ -8,8 +8,33 @@ import Navbar from "@/components/Navbar";
 import { useAuth } from "@/context/AuthContext";
 import { storage } from "@/lib/firebase";
 
-const CATEGORIES = ["Residential", "Commercial", "Land", "Rental"];
-const AMENITIES = ["Parking", "Lift", "Power backup", "Security", "Gym", "Garden", "Swimming pool", "Furnished"];
+const PROPERTY_TYPES = [
+  "Hotel",
+  "Resort",
+  "Villa",
+  "Homestay",
+  "Apartment",
+  "Boutique Hotel",
+  "Farmhouse",
+  "Holiday Home",
+  "Serviced Apartment",
+];
+const STAY_TIERS = ["Royal", "Gold", "Easy"];
+const AMENITIES = [
+  "Wi-Fi",
+  "Air conditioning",
+  "Swimming pool",
+  "Free parking",
+  "Breakfast included",
+  "Beach access",
+  "Kitchen",
+  "Washer",
+  "Workspace",
+  "Pet friendly",
+  "Lift",
+  "Power backup",
+  "Security",
+];
 
 import { Suspense } from "react";
 
@@ -21,12 +46,17 @@ function PostPropertyForm() {
   const [form, setForm] = useState({
     title: "",
     description: "",
-    category: "Residential",
+    category: "Rental",
+    propertyType: "Homestay",
+    stayTier: "Easy",
+    priceBasis: "night",
     price: "",
     area: "",
     bedrooms: "",
     bathrooms: "",
+    capacity: "2",
     amenities: [],
+    petFriendly: false,
     address: "",
     city: "",
     pincode: "",
@@ -39,30 +69,38 @@ function PostPropertyForm() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
 
-
   useEffect(() => {
-    if (!editId) return;
+    if (!editId || !user) return;
     (async () => {
       try {
-        const res = await fetch(`/api/properties/${editId}`);
-        if (res.ok) {
-          const data = await res.json();
-          const d = data.property;
-          setForm((f) => ({ 
-            ...f, 
-            ...d, 
-            price: String(d.price), 
-            area: String(d.area),
-            lat: String(d.location?.coordinates?.[1] || d.lat || ""),
-            lng: String(d.location?.coordinates?.[0] || d.lng || "")
-          }));
-          setExistingImages(d.images || []);
+        const token = await user.getIdToken();
+        const res = await fetch(`/api/properties/${editId}`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (!res.ok) {
+          throw new Error("Unable to load this listing for editing.");
         }
+        const data = await res.json();
+        const d = data.property;
+        setForm((f) => ({
+          ...f,
+          ...d,
+          propertyType: d.propertyType || "Apartment",
+          stayTier: d.stayTier || "Easy",
+          priceBasis: d.priceBasis || (d.category === "Rental" ? "month" : "listing"),
+          price: String(d.price),
+          area: String(d.area || ""),
+          capacity: String(d.capacity || 2),
+          petFriendly: Boolean(d.petFriendly),
+          lat: String(d.location?.coordinates?.[1] || d.lat || ""),
+          lng: String(d.location?.coordinates?.[0] || d.lng || ""),
+        }));
+        setExistingImages(d.images || []);
       } catch (e) {
-        console.error("Error loading property for edit:", e);
+        setError(e.message || "Error loading listing for edit.");
       }
     })();
-  }, [editId]);
+  }, [editId, user]);
 
   function update(k, v) {
     setForm((f) => ({ ...f, [k]: v }));
@@ -76,10 +114,19 @@ function PostPropertyForm() {
   }
 
   function detectLocation() {
-    navigator.geolocation.getCurrentPosition((pos) => {
-      update("lat", String(pos.coords.latitude));
-      update("lng", String(pos.coords.longitude));
-    });
+    if (!navigator.geolocation) {
+      setError("Location detection is not available in this browser.");
+      return;
+    }
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        update("lat", String(pos.coords.latitude));
+        update("lng", String(pos.coords.longitude));
+        setError("");
+      },
+      () => setError("Location access was unavailable. You can continue without it."),
+      { enableHighAccuracy: false, timeout: 10000 }
+    );
   }
 
   async function handleSubmit(e) {
@@ -87,6 +134,10 @@ function PostPropertyForm() {
     setError("");
     if (!user || !profile?.verified) {
       setError("Please verify your account before posting a property.");
+      return;
+    }
+    if (existingImages.length + files.length < 3) {
+      setError("Add at least three property photos before submitting for review.");
       return;
     }
     setSubmitting(true);
@@ -102,16 +153,16 @@ function PostPropertyForm() {
 
       const payload = {
         ...form,
-        ownerUid: user.uid,
-        ownerEmail: profile.email,
+        category: "Rental",
+        priceBasis: form.priceBasis,
         price: Number(form.price),
-        area: Number(form.area),
+        area: Number(form.area) || 0,
         bedrooms: Number(form.bedrooms) || 0,
         bathrooms: Number(form.bathrooms) || 0,
+        capacity: Number(form.capacity) || 1,
         lat: form.lat ? Number(form.lat) : null,
         lng: form.lng ? Number(form.lng) : null,
         images,
-        status: "active",
       };
 
       const token = await user.getIdToken();
@@ -149,9 +200,13 @@ function PostPropertyForm() {
           <p className="text-[11px] tracking-[0.3em] uppercase text-gold font-600 mb-2">
             {editId ? "Edit listing" : "New listing"}
           </p>
-          <h1 className="font-display font-800 text-3xl text-cream mb-8">
-            {editId ? "Update your property" : "List your property"}
+          <h1 className="font-display font-800 text-3xl text-cream mb-2">
+            {editId ? "Update your stay" : "List your stay"}
           </h1>
+          <p className="mb-8 text-sm leading-6 text-cream/55">
+            Every new listing and substantial edit is reviewed before it appears
+            to guests. Please provide accurate details and at least three photos.
+          </p>
 
           <form onSubmit={handleSubmit} className="flex flex-col gap-4">
             <Field label="Title">
@@ -173,36 +228,55 @@ function PostPropertyForm() {
             </Field>
 
             <div className="grid grid-cols-2 gap-3">
-              <Field label="Category">
-                <select value={form.category} onChange={(e) => update("category", e.target.value)} className="input">
-                  {CATEGORIES.map((c) => (
-                    <option key={c}>{c}</option>
+              <Field label="Type of stay">
+                <select value={form.propertyType} onChange={(e) => update("propertyType", e.target.value)} className="input">
+                  {PROPERTY_TYPES.map((type) => (
+                    <option key={type}>{type}</option>
                   ))}
                 </select>
               </Field>
+              <Field label="Collection">
+                <select value={form.stayTier} onChange={(e) => update("stayTier", e.target.value)} className="input">
+                  {STAY_TIERS.map((tier) => (
+                    <option key={tier}>{tier}</option>
+                  ))}
+                </select>
+              </Field>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
               <Field label="Price (₹)">
                 <input
                   required
+                  min="1"
                   type="number"
                   value={form.price}
                   onChange={(e) => update("price", e.target.value)}
                   className="input"
                 />
               </Field>
+              <Field label="Price is per">
+                <select value={form.priceBasis} onChange={(e) => update("priceBasis", e.target.value)} className="input">
+                  <option value="night">Night</option>
+                  <option value="month">Month</option>
+                </select>
+              </Field>
             </div>
 
-            <div className="grid grid-cols-3 gap-3">
-              <Field label="Area (sqft)">
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+              <Field label="Sleeps up to">
                 <input
                   required
+                  min="1"
                   type="number"
-                  value={form.area}
-                  onChange={(e) => update("area", e.target.value)}
+                  value={form.capacity}
+                  onChange={(e) => update("capacity", e.target.value)}
                   className="input"
                 />
               </Field>
               <Field label="Bedrooms">
                 <input
+                  min="0"
                   type="number"
                   value={form.bedrooms}
                   onChange={(e) => update("bedrooms", e.target.value)}
@@ -211,9 +285,18 @@ function PostPropertyForm() {
               </Field>
               <Field label="Bathrooms">
                 <input
+                  min="0"
                   type="number"
                   value={form.bathrooms}
                   onChange={(e) => update("bathrooms", e.target.value)}
+                  className="input"
+                />
+              </Field>
+              <Field label="Area (sqft, optional)">
+                <input
+                  type="number"
+                  value={form.area}
+                  onChange={(e) => update("area", e.target.value)}
                   className="input"
                 />
               </Field>
@@ -237,6 +320,15 @@ function PostPropertyForm() {
                 ))}
               </div>
             </Field>
+
+            <label className="flex items-center gap-2 text-sm text-cream/70">
+              <input
+                type="checkbox"
+                checked={form.petFriendly}
+                onChange={(e) => update("petFriendly", e.target.checked)}
+              />
+              Pets are welcome
+            </label>
 
             <Field label="Address">
               <input
@@ -270,7 +362,7 @@ function PostPropertyForm() {
               </button>
               {form.lat && form.lng && (
                 <span className="text-xs text-cream/40">
-                  {Number(form.lat).toFixed(3)}, {Number(form.lng).toFixed(3)}
+                  Location saved privately; guests see only the city.
                 </span>
               )}
             </div>
@@ -280,9 +372,10 @@ function PostPropertyForm() {
                 type="file"
                 multiple
                 accept="image/*"
-                onChange={(e) => setFiles(Array.from(e.target.files))}
+                onChange={(e) => setFiles(Array.from(e.target.files || []))}
                 className="text-sm text-cream/70"
               />
+              <span className="text-xs text-cream/45">At least three images are required.</span>
               {existingImages.length > 0 && (
                 <div className="flex gap-2 mt-2">
                   {existingImages.map((img, i) => (
@@ -292,22 +385,13 @@ function PostPropertyForm() {
               )}
             </Field>
 
-            <label className="flex items-center gap-2 text-sm text-cream/70">
-              <input
-                type="checkbox"
-                checked={form.isFeatured}
-                onChange={(e) => update("isFeatured", e.target.checked)}
-              />
-              Feature this listing as a promotional ad banner
-            </label>
-
             {error && <p className="text-xs text-red-400">{error}</p>}
 
             <button
               disabled={submitting}
               className="mt-2 px-5 py-3 rounded-full bg-gold text-ink font-700 text-sm disabled:opacity-50 hover:bg-gold-soft transition-colors"
             >
-              {submitting ? "Saving…" : editId ? "Save changes" : "Publish listing"}
+              {submitting ? "Saving…" : editId ? "Submit changes for review" : "Submit for review"}
             </button>
           </form>
         </motion.div>
@@ -353,4 +437,3 @@ export default function PostPropertyPage() {
     </Suspense>
   );
 }
-

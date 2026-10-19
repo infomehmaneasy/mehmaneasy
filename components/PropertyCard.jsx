@@ -1,17 +1,65 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import Link from "next/link";
 import { Bath, BedDouble, Heart, MapPin } from "lucide-react";
 
 export default function PropertyCard({ property, index = 0 }) {
-  const [saved, setSaved] = useState(false);
+  const propertyId = String(property.id || property._id);
+  const [savedIds, setSavedIds] = useState([]);
+  const saved = savedIds.includes(propertyId);
   const image =
     property.images?.[0] ||
     "https://images.unsplash.com/photo-1560518883-ce09059eeffa?auto=format&fit=crop&w=900&q=80";
-  const isRental = property.category === "Rental";
   const price = Number(property.price || 0).toLocaleString("en-IN");
+  const priceBasis =
+    property.priceBasis || (property.category === "Rental" ? "month" : "listing");
+
+  useEffect(() => {
+    function syncSavedIds(event) {
+      try {
+        const stored =
+          event.detail ||
+          JSON.parse(localStorage.getItem("mehmaan-easy:wishlist:v1") || "[]");
+        if (Array.isArray(stored)) {
+          setSavedIds(stored.filter((id) => typeof id === "string"));
+        }
+      } catch (error) {
+        console.error("Unable to load saved stays:", error);
+      }
+    }
+
+    syncSavedIds({ detail: null });
+    window.addEventListener("storage", syncSavedIds);
+    window.addEventListener("mehmaan-easy:wishlist-changed", syncSavedIds);
+    return () => {
+      window.removeEventListener("storage", syncSavedIds);
+      window.removeEventListener("mehmaan-easy:wishlist-changed", syncSavedIds);
+    };
+  }, []);
+
+  function toggleSaved() {
+    let currentIds = savedIds;
+    try {
+      const stored = JSON.parse(localStorage.getItem("mehmaan-easy:wishlist:v1") || "[]");
+      if (Array.isArray(stored)) currentIds = stored.filter((id) => typeof id === "string");
+    } catch (error) {
+      console.error("Unable to update saved stays:", error);
+    }
+    const next = currentIds.includes(propertyId)
+      ? currentIds.filter((id) => id !== propertyId)
+      : [...currentIds, propertyId];
+    setSavedIds(next);
+    try {
+      localStorage.setItem("mehmaan-easy:wishlist:v1", JSON.stringify(next));
+      window.dispatchEvent(
+        new CustomEvent("mehmaan-easy:wishlist-changed", { detail: next })
+      );
+    } catch (error) {
+      console.error("Unable to save this stay on the device:", error);
+    }
+  }
 
   return (
     <motion.article
@@ -40,7 +88,7 @@ export default function PropertyCard({ property, index = 0 }) {
           <span className="absolute inset-0 bg-gradient-to-t from-black/35 via-transparent to-transparent opacity-70" />
         </Link>
         {property.isFeatured && (
-          <span className="absolute left-3 top-3 rounded-full bg-white/95 px-3 py-1.5 text-[11px] font-semibold text-[#29352f] shadow-sm">
+          <span className="absolute bottom-3 left-3 rounded-full bg-white/95 px-3 py-1.5 text-[11px] font-semibold text-[#29352f] shadow-sm">
             Featured stay
           </span>
         )}
@@ -48,7 +96,7 @@ export default function PropertyCard({ property, index = 0 }) {
           type="button"
           aria-label={saved ? "Remove from saved stays" : "Save this stay"}
           aria-pressed={saved}
-          onClick={() => setSaved((value) => !value)}
+          onClick={toggleSaved}
           className="absolute right-3 top-3 flex h-10 w-10 items-center justify-center rounded-full bg-black/20 text-white backdrop-blur-sm transition hover:scale-105 hover:bg-black/35"
         >
           <Heart
@@ -67,6 +115,11 @@ export default function PropertyCard({ property, index = 0 }) {
           <h3 className="line-clamp-1 text-sm font-semibold text-[#29352f] transition-colors group-hover:text-[#bd604a]">
             {property.title || "A welcoming stay"}
           </h3>
+          {property.rating && (
+            <span className="shrink-0 text-xs text-[#34433b]">
+              <span aria-hidden="true">★</span> {Number(property.rating).toFixed(1)}
+            </span>
+          )}
         </div>
         <p className="mt-1 flex items-center gap-1 text-xs text-[#707a73]">
           <MapPin size={13} className="shrink-0" />
@@ -85,11 +138,18 @@ export default function PropertyCard({ property, index = 0 }) {
               <Bath size={14} /> {property.bathrooms} baths
             </span>
           )}
+          <span className="inline-flex items-center gap-1">
+            <span>{property.capacity || 2}</span> guests
+          </span>
         </div>
         <p className="mt-2 text-sm text-[#29352f]">
           <span className="font-semibold">₹{price}</span>{" "}
           <span className="text-[#707a73]">
-            {isRental ? "per month" : "asking price"}
+            {priceBasis === "night"
+              ? "per night"
+              : priceBasis === "month"
+                ? "per month"
+                : "per stay"}
           </span>
         </p>
       </Link>

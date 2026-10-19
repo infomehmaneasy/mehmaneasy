@@ -12,10 +12,10 @@ export async function POST(req) {
   try {
     await dbConnect();
     const { email, code, registrationData } = await req.json();
-    const cleanEmail = (email || "").trim().toLowerCase();
-    const cleanCode = (code || "").trim();
+    const cleanEmail = typeof email === "string" ? email.trim().toLowerCase() : "";
+    const cleanCode = typeof code === "string" ? code.trim() : "";
 
-    if (!cleanEmail || !cleanCode) {
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleanEmail) || !/^\d{6}$/.test(cleanCode)) {
       return NextResponse.json({ error: "Email and code are required." }, { status: 400 });
     }
 
@@ -44,7 +44,18 @@ export async function POST(req) {
     // Now check if a user is logging in or completing registration.
     // If registrationData is provided, we perform registration.
     if (registrationData) {
-      const { name, password, phone, place, pincode } = registrationData;
+      const { name, password, phone, place, pincode, role = "guest" } = registrationData;
+      if (
+        typeof name !== "string" ||
+        !name.trim() ||
+        name.length > 100 ||
+        typeof password !== "string" ||
+        password.length < 6 ||
+        password.length > 128 ||
+        !["guest", "host"].includes(role)
+      ) {
+        return NextResponse.json({ error: "Registration details are invalid." }, { status: 400 });
+      }
       let firebaseUser = null;
       let userDocCreated = false;
 
@@ -65,6 +76,7 @@ export async function POST(req) {
           place,
           pincode,
           verified: true,
+          role,
         });
         userDocCreated = true;
 

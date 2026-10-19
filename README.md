@@ -1,53 +1,71 @@
 # Mehmaan Easy
 
-Curated stays marketplace — Next.js (App Router) + Tailwind + Framer Motion, with Firebase authentication and MongoDB property listings.
+**Stay Better. Book Easier.**
 
-The guest-facing experience is designed around finding and hosting stays. The current listing schema still stores monthly rental and real-estate-style property records; nightly rates, booking availability, payments, and reservation workflows need to be added before guests can complete a stay booking.
+Mehmaan Easy is an India-focused, curated accommodation marketplace. This repository currently contains the guest discovery experience, host listing submission and verification flow, account registration, and an admin queue for listing reviews and guest questions.
 
-## 1. Firebase project setup
-1. Create a project at console.firebase.google.com.
-2. Enable **Authentication → Email/Password**.
-3. Enable **Firestore** (production mode) and **Storage**.
-4. Add a Web App and copy the config into `.env.local` (copy `.env.local.example` → `.env.local`, fill in all six `NEXT_PUBLIC_FIREBASE_*` values, then restart `npm run dev` — Next.js only reads env files on startup). Until this is done, the app shows a setup screen instead of crashing.
-5. In Google Cloud Console, create an **App Password** for a Gmail account you control (or swap Nodemailer for SendGrid/Mailgun in `functions/index.js`).
+## Current scope
 
-## 2. Install
-```bash
-npm install
-cd functions && npm install && cd ..
-```
+Implemented:
 
-## 3. Configure the email sender for Cloud Functions
-```bash
-firebase functions:config:set gmail.email="you@gmail.com" gmail.app_password="xxxx xxxx xxxx xxxx"
-```
+- Responsive stay discovery homepage, animated navigation, destination search, listing filters, and saved stays in the current browser.
+- Guest and host accounts using Firebase Authentication.
+- Host listings with property type, Royal/Gold/Easy collection, nightly or monthly pricing, guest capacity, amenities, pet-friendly flag, and photos.
+- New and edited listings enter the verification queue. Only approved and active listings are public.
+- Public listing responses omit host contact details, the full street address, postal code, and exact coordinates.
+- Pre-booking guest questions are stored for the Mehmaan Easy support team; they are never emailed directly to the host.
+- An admin workspace for approving/rejecting listings and reviewing support questions.
 
-## 4. Deploy backend
-```bash
-firebase deploy --only firestore:rules,firestore:indexes,storage:rules,functions
-```
+Not yet implemented:
 
-## 5. Seed 50+ demo listings
-All seeded properties are owned by `sumitranjanhisu@gmail.com` (auto-created in Firebase Auth if it doesn't exist yet, temp password printed to the console).
-```bash
-# Download a service account key (Project settings → Service accounts) and
-# save it as ./serviceAccountKey.json, then:
-npm run seed
-```
+- Booking creation, date-calendar availability/holds, conflict prevention, invoices, or cancellation/refund workflows.
+- Payment processing, including the 70% online / 30% at check-in split. **Do not collect or represent payments as enabled.**
+- SMS, WhatsApp, push notifications, external-calendar sync, reviews, guest/host messaging after booking, payouts, and the wider guest/host/admin analytics described in the requirements.
+- Property-document uploads and a complete inspection/improvement-report process.
 
-## 6. Run locally
-```bash
-npm run dev
-```
-## 7. Repush and run build
+Those integrations require product decisions, provider accounts, credentials, webhook configuration, and operational policies. The current enquiry form is not a booking or reservation.
+
+## Local setup
+
+1. Install Node.js 20 or newer and MongoDB Atlas (or another reachable MongoDB deployment).
+2. Copy `.env.local.example` to `.env.local`.
+3. In Firebase Console, create a Web App and enable **Authentication → Email/Password** and **Google**. Add the six `NEXT_PUBLIC_FIREBASE_*` web configuration values.
+4. Configure Firebase Admin server credentials using `FIREBASE_PROJECT_ID`, `FIREBASE_CLIENT_EMAIL`, and `FIREBASE_PRIVATE_KEY`. Keep the service account private and outside Git.
+5. Set `MONGODB_URI` to a database the development machine can resolve and connect to.
+6. Set `GMAIL_EMAIL` and `GMAIL_APP_PASSWORD` to a mail account configured to send verification messages. Without these values, email registration returns a setup error rather than logging verification codes.
+7. Set `SUPPORT_EMAIL` to the real guest-support inbox. Set `ADMIN_EMAILS` to comma-separated Firebase-verified admin email addresses. These accounts can use `/admin`.
+8. Set `NEXT_PUBLIC_APP_URL` to the canonical public URL in deployed environments.
+9. Install and run:
+
+   ```bash
+   npm install
+   npm run dev
+   ```
+
+   Deploy Firebase Functions separately only if using their OTP/enquiry functions; the current web registration and enquiry routes use the Next.js server routes.
+
+## Host and review workflow
+
+1. Create a host account (or switch a verified guest account to host in the dashboard).
+2. Submit a stay with at least three photos.
+3. A configured administrator signs in with an address in `ADMIN_EMAILS`, opens `/admin`, and approves or rejects the submission with improvement notes.
+4. Only approved, active stays are returned by public browse and detail APIs. Editing an approved stay sends it back for review.
+
+Existing property records created before verification was added are private from public search until an administrator reviews them. Legacy records may not have the new stay fields; review and update them before approval.
+
+## Build and deploy
+
 ```bash
 npm run build
-git add .
-git commit -m "3d ui design"
-git push -u origin main
+npm run start
 ```
-## How the pieces fit together
-- **OTP verification**: `sendOtp`/`verifyOtp` Cloud Functions (custom 6-digit code, since Firebase Auth has no native email-OTP primitive) — see `functions/index.js`.
-- **Location sorting + ad injection**: `hooks/useNearbyProperties.js` sorts by Haversine distance from the browser's geolocation and interleaves `isFeatured` listings as ad banners every 4–6 cards.
-- **Enquiries → email**: `EnquiryModal` writes to `enquiries/{id}`; the `onEnquiryCreated` Firestore trigger emails the seller and a confirmation to the buyer.
-- **Security**: `firestore.rules` restricts property edits/deletes to `ownerUid`, and `otps/{email}` is server-only.
+
+Configure all required Firebase, MongoDB, mail, support, and admin environment variables in the deployment provider. Keep service-account keys and `.env.local` out of source control.
+
+## Data services
+
+- **Firebase Authentication** — identity and sign-in.
+- **MongoDB** — user profiles, stay listings, support enquiries, and one-time verification codes.
+- **Firebase Storage** — host-uploaded listing photos.
+
+The existing Firestore rules/functions remain in the repository for their legacy integrations; they do not provide the missing booking or payment functionality.

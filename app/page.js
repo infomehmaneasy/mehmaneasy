@@ -95,11 +95,7 @@ export default function HomePage() {
         }
         const data = await response.json();
         if (active) {
-          setProperties(
-            (data.properties || [])
-              .filter((property) => property.category === "Rental")
-              .slice(0, 4)
-          );
+          setProperties((data.properties || []).slice(0, 4));
         }
       } catch (error) {
         console.error("Unable to load featured stays:", error);

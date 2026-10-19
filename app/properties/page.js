@@ -15,11 +15,18 @@ export default function PropertiesListingPage() {
 
   // Filters State
   const [keyword, setKeyword] = useState("");
-  const category = "Rental";
+  const [category, setCategory] = useState("All");
+  const [propertyType, setPropertyType] = useState("All");
+  const [priceBasis, setPriceBasis] = useState("all");
   const [minPrice, setMinPrice] = useState("");
   const [maxPrice, setMaxPrice] = useState("");
   const [bedrooms, setBedrooms] = useState("");
   const [minArea, setMinArea] = useState("");
+  const [guests, setGuests] = useState("");
+  const [amenity, setAmenity] = useState("");
+  const [petFriendly, setPetFriendly] = useState(false);
+  const [instantBook, setInstantBook] = useState(false);
+  const [pool, setPool] = useState(false);
 
   const [expanded, setExpanded] = useState(false);
   const [sortBy, setSortBy] = useState("newest");
@@ -30,6 +37,11 @@ export default function PropertiesListingPage() {
     setKeyword(params.get("keyword") || "");
     setMinPrice(params.get("minPrice") || "");
     setMaxPrice(params.get("maxPrice") || "");
+    setCategory(params.get("stayTier") || "All");
+    setPropertyType(params.get("propertyType") || "All");
+    setGuests(params.get("guests") || "");
+    setPetFriendly(params.get("petFriendly") === "true");
+    setInstantBook(params.get("instantBook") === "true");
     const checkIn = params.get("checkIn");
     const checkOut = params.get("checkOut");
     const guests = params.get("guests");
@@ -84,12 +96,37 @@ export default function PropertiesListingPage() {
       );
     }
 
-    // Category filter
     if (category !== "All") {
-      result = result.filter((p) => p.category === category);
+      result = result.filter((p) => p.stayTier === category);
+    }
+    if (propertyType !== "All") {
+      result = result.filter((p) => p.propertyType === propertyType);
+    }
+    if (guests) {
+      result = result.filter((p) => Number(p.capacity || 1) >= Number(guests));
+    }
+    if (amenity) {
+      result = result.filter((p) => p.amenities?.includes(amenity));
+    }
+    if (petFriendly) {
+      result = result.filter((p) => p.petFriendly);
+    }
+    if (instantBook) {
+      result = result.filter((p) => p.instantBook);
+    }
+    if (pool) {
+      result = result.filter((p) =>
+        p.amenities?.some((item) => item.toLowerCase().includes("pool"))
+      );
     }
 
-    // Price filters
+    if (priceBasis !== "all") {
+      result = result.filter(
+        (p) =>
+          (p.priceBasis || (p.category === "Rental" ? "month" : "listing")) ===
+          priceBasis
+      );
+    }
     if (minPrice) {
       result = result.filter((p) => Number(p.price) >= Number(minPrice));
     }
@@ -120,7 +157,23 @@ export default function PropertiesListingPage() {
     }
 
     setFilteredProperties(result);
-  }, [properties, keyword, category, minPrice, maxPrice, bedrooms, minArea, sortBy]);
+  }, [
+    properties,
+    keyword,
+    category,
+    propertyType,
+    priceBasis,
+    minPrice,
+    maxPrice,
+    bedrooms,
+    minArea,
+    guests,
+    amenity,
+    petFriendly,
+    instantBook,
+    pool,
+    sortBy,
+  ]);
 
   return (
     <main className="relative min-h-screen bg-[#fffdf9] text-[#24302b]">
@@ -136,8 +189,8 @@ export default function PropertiesListingPage() {
             </h1>
           </div>
           <p className="mt-4 max-w-sm text-sm leading-6 text-[#707a73] md:mt-0">
-            Search the available homes by destination, then explore the details
-            that make each one feel special.
+            Browse approved stays by destination, price, type, or amenities.
+            Hosts are never contacted directly before a booking.
           </p>
         </div>
 
@@ -150,14 +203,22 @@ export default function PropertiesListingPage() {
               <input
                 value={keyword}
                 onChange={(e) => setKeyword(e.target.value)}
-                placeholder="Where do you want to go?"
+                placeholder="Search by destination or stay name"
                 className="w-full bg-transparent text-sm text-[#26322c] outline-none placeholder:text-[#858d87]"
               />
             </div>
 
-            <span className="whitespace-nowrap rounded-full bg-[#f4f2ed] px-4 py-2 text-xs font-semibold text-[#526058]">
-              Monthly stays
-            </span>
+            <select
+              value={category}
+              onChange={(event) => setCategory(event.target.value)}
+              aria-label="Stay collection"
+              className="cursor-pointer rounded-full border border-[#e8e7e1] bg-white px-4 py-2 text-xs font-semibold text-[#34433b]"
+            >
+              <option value="All">All collections</option>
+              <option value="Royal">Royal</option>
+              <option value="Gold">Gold</option>
+              <option value="Easy">Easy</option>
+            </select>
 
             {/* More filters and sorting triggers */}
             <div className="flex items-center gap-2 w-full lg:w-auto">
@@ -166,7 +227,7 @@ export default function PropertiesListingPage() {
                 onChange={(e) => setSortBy(e.target.value)}
                 className="flex-1 cursor-pointer rounded-2xl border border-[#e8e7e1] bg-white px-4 py-2.5 text-xs font-semibold text-[#34433b] outline-none focus:border-[#bd604a] lg:flex-none"
               >
-                <option value="newest">Newest listing</option>
+                <option value="newest">Featured & newest</option>
                 <option value="price_asc">Price: low to high</option>
                 <option value="price_desc">Price: high to low</option>
                 <option value="area_desc">Largest area</option>
@@ -194,7 +255,32 @@ export default function PropertiesListingPage() {
               >
                 <div className="mt-4 grid grid-cols-2 gap-4 border-t border-[#ecebe6] pt-4 md:grid-cols-4">
                   <label className="flex flex-col gap-1.5 text-[10px] font-semibold uppercase tracking-wider text-[#65716a]">
-                    Min monthly price (₹)
+                    Stay type
+                    <select
+                      value={propertyType}
+                      onChange={(e) => setPropertyType(e.target.value)}
+                      className="rounded-xl border border-[#e0e1dc] bg-white px-3 py-2 text-sm text-[#26322c]"
+                    >
+                      <option value="All">Any type</option>
+                      {["Hotel", "Resort", "Villa", "Homestay", "Apartment", "Boutique Hotel", "Farmhouse", "Holiday Home", "Serviced Apartment"].map((type) => (
+                        <option key={type}>{type}</option>
+                      ))}
+                    </select>
+                  </label>
+                  <label className="flex flex-col gap-1.5 text-[10px] font-semibold uppercase tracking-wider text-[#65716a]">
+                    Price period
+                    <select
+                      value={priceBasis}
+                      onChange={(e) => setPriceBasis(e.target.value)}
+                      className="rounded-xl border border-[#e0e1dc] bg-white px-3 py-2 text-sm text-[#26322c]"
+                    >
+                      <option value="all">Any period</option>
+                      <option value="night">Per night</option>
+                      <option value="month">Per month</option>
+                    </select>
+                  </label>
+                  <label className="flex flex-col gap-1.5 text-[10px] font-semibold uppercase tracking-wider text-[#65716a]">
+                    Min price (₹)
                     <input
                       type="number"
                       className="rounded-xl border border-[#e0e1dc] bg-white px-3 py-2 text-sm text-[#26322c] outline-none focus:border-[#bd604a]"
@@ -203,7 +289,7 @@ export default function PropertiesListingPage() {
                     />
                   </label>
                   <label className="flex flex-col gap-1.5 text-[10px] font-semibold uppercase tracking-wider text-[#65716a]">
-                    Max monthly price (₹)
+                    Max price (₹)
                     <input
                       type="number"
                       className="rounded-xl border border-[#e0e1dc] bg-white px-3 py-2 text-sm text-[#26322c] outline-none focus:border-[#bd604a]"
@@ -212,7 +298,17 @@ export default function PropertiesListingPage() {
                     />
                   </label>
                   <label className="flex flex-col gap-1.5 text-[10px] font-semibold uppercase tracking-wider text-[#65716a]">
-                    Min bedrooms
+                    Guests
+                    <input
+                      min="1"
+                      type="number"
+                      value={guests}
+                      onChange={(e) => setGuests(e.target.value)}
+                      className="rounded-xl border border-[#e0e1dc] bg-white px-3 py-2 text-sm text-[#26322c] outline-none focus:border-[#bd604a]"
+                    />
+                  </label>
+                  <label className="flex flex-col gap-1.5 text-[10px] font-semibold uppercase tracking-wider text-[#65716a]">
+                    Minimum bedrooms
                     <input
                       type="number"
                       className="rounded-xl border border-[#e0e1dc] bg-white px-3 py-2 text-sm text-[#26322c] outline-none focus:border-[#bd604a]"
@@ -221,7 +317,20 @@ export default function PropertiesListingPage() {
                     />
                   </label>
                   <label className="flex flex-col gap-1.5 text-[10px] font-semibold uppercase tracking-wider text-[#65716a]">
-                    Min area (sqft)
+                    Amenity
+                    <select
+                      value={amenity}
+                      onChange={(e) => setAmenity(e.target.value)}
+                      className="rounded-xl border border-[#e0e1dc] bg-white px-3 py-2 text-sm text-[#26322c]"
+                    >
+                      <option value="">Any amenity</option>
+                      {["Wi-Fi", "Air conditioning", "Free parking", "Breakfast included", "Beach access", "Kitchen", "Workspace"].map((item) => (
+                        <option key={item}>{item}</option>
+                      ))}
+                    </select>
+                  </label>
+                  <label className="flex flex-col gap-1.5 text-[10px] font-semibold uppercase tracking-wider text-[#65716a]">
+                    Minimum area (sqft)
                     <input
                       type="number"
                       className="rounded-xl border border-[#e0e1dc] bg-white px-3 py-2 text-sm text-[#26322c] outline-none focus:border-[#bd604a]"
@@ -229,6 +338,23 @@ export default function PropertiesListingPage() {
                       onChange={(e) => setMinArea(e.target.value)}
                     />
                   </label>
+                  <div className="col-span-2 flex flex-wrap gap-x-5 gap-y-3 md:col-span-4">
+                    {[
+                      ["petFriendly", "Pet friendly", petFriendly, setPetFriendly],
+                      ["instantBook", "Instant book", instantBook, setInstantBook],
+                      ["pool", "Swimming pool", pool, setPool],
+                    ].map(([id, label, checked, setChecked]) => (
+                      <label key={id} className="flex items-center gap-2 text-xs font-medium text-[#526058]">
+                        <input
+                          type="checkbox"
+                          checked={checked}
+                          onChange={(event) => setChecked(event.target.checked)}
+                          className="accent-[#bd604a]"
+                        />
+                        {label}
+                      </label>
+                    ))}
+                  </div>
                 </div>
               </motion.div>
             )}

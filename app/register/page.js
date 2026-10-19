@@ -3,10 +3,8 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
-import { httpsCallable } from "firebase/functions";
 import Navbar from "@/components/Navbar";
 import { useAuth } from "@/context/AuthContext";
-import { functions } from "@/lib/firebase";
 
 export default function RegisterPage() {
   const { registerWithEmail, loginWithGoogle, refreshProfile } = useAuth();
@@ -18,6 +16,7 @@ export default function RegisterPage() {
     phone: "",
     place: "",
     pincode: "",
+    role: "guest",
   });
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -55,14 +54,13 @@ export default function RegisterPage() {
       // Register the Google user in MongoDB
       const res = await fetch("/api/auth/google-register", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${await user.getIdToken()}`,
+        },
         body: JSON.stringify({
-          uid: user.uid,
           name: user.displayName || "Google User",
-          email: user.email,
-          phone: user.phoneNumber || "Google Sign-in",
-          place: "Not Specified",
-          pincode: "000000",
+          role: form.role,
         }),
       });
 
@@ -88,9 +86,9 @@ export default function RegisterPage() {
       <section className="max-w-md mx-auto px-5 py-16">
         <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
           <p className="text-[11px] tracking-[0.3em] uppercase text-gold font-600 mb-2">Get started</p>
-          <h1 className="font-display font-800 text-3xl text-cream mb-1">Create your seller account</h1>
+          <h1 className="font-display font-800 text-3xl text-cream mb-1">Create your account</h1>
           <p className="text-cream/55 text-sm mb-8">
-            We'll email you a 6-digit code to confirm it's really you.
+            Choose how you’ll use Mehmaan Easy. We’ll email a 6-digit code to verify your address.
           </p>
 
           <form onSubmit={handleSubmit} className="flex flex-col gap-3">
@@ -104,6 +102,17 @@ export default function RegisterPage() {
               required
             />
             <Input label="Phone" value={form.phone} onChange={(v) => update("phone", v)} required />
+            <label className="text-xs text-cream/60 flex flex-col gap-1.5">
+              I am joining as
+              <select
+                value={form.role}
+                onChange={(event) => update("role", event.target.value)}
+                className="rounded-lg border border-ink-line bg-ink-panel px-3 py-2.5 text-sm text-cream outline-none focus:border-gold"
+              >
+                <option value="guest">A guest looking for stays</option>
+                <option value="host">A host listing my property</option>
+              </select>
+            </label>
             <div className="grid grid-cols-2 gap-3">
               <Input label="City / place" value={form.place} onChange={(v) => update("place", v)} required />
               <Input label="Pincode" value={form.pincode} onChange={(v) => update("pincode", v)} required />

@@ -5,8 +5,13 @@ import { motion, AnimatePresence } from "framer-motion";
 import { X, CheckCircle2 } from "lucide-react";
 
 
-export default function EnquiryModal({ property, onClose }) {
-  const [form, setForm] = useState({ buyerName: "", buyerEmail: "", buyerPhone: "", message: "" });
+export default function EnquiryModal({ property, onClose, initialMessage = "" }) {
+  const [form, setForm] = useState({
+    buyerName: "",
+    buyerEmail: "",
+    buyerPhone: "",
+    message: initialMessage,
+  });
   const [submitting, setSubmitting] = useState(false);
   const [done, setDone] = useState(false);
   const [error, setError] = useState("");
@@ -25,20 +30,19 @@ export default function EnquiryModal({ property, onClose }) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           propertyId: property.id,
-          sellerEmail: property.ownerEmail,
           buyerName: form.buyerName,
           buyerEmail: form.buyerEmail,
           buyerPhone: form.buyerPhone,
-          message: form.message || `Hi, I'm interested in "${property.title}". Please share more details.`,
-          propertyLink: typeof window !== "undefined" ? window.location.href : "",
-          propertyTitle: property.title,
+          message: form.message,
         }),
       });
       if (!res.ok) {
         const data = await res.json();
         throw new Error(data.error || "Failed to submit enquiry.");
       }
+      const data = await res.json();
       setDone(true);
+      setError(data.notificationSent ? "" : "Your question was saved, but email notification is unavailable right now.");
     } catch (err) {
       setError(err.message || "Something went wrong sending your enquiry. Please try again.");
     } finally {
@@ -74,8 +78,10 @@ export default function EnquiryModal({ property, onClose }) {
               <CheckCircle2 className="text-gold-deep" size={40} />
               <h3 className="font-display font-700 text-ink text-lg">Enquiry sent</h3>
               <p className="text-ink/60 text-sm">
-                The seller has been notified. We've also emailed you a confirmation with the property details.
+                Your question has been sent to Mehmaan Easy support. Hosts are
+                not contacted before a booking.
               </p>
+              {error && <p className="mt-2 text-xs text-amber-700">{error}</p>}
               <button
                 onClick={onClose}
                 className="mt-2 px-5 py-2 rounded-full bg-ink text-gold-soft text-sm font-600"
@@ -85,31 +91,39 @@ export default function EnquiryModal({ property, onClose }) {
             </div>
           ) : (
             <>
-              <p className="text-[10px] uppercase tracking-[0.25em] text-gold-deep font-600">Enquire</p>
+              <p className="text-[10px] uppercase tracking-[0.25em] text-gold-deep font-600">Ask Mehmaan Easy</p>
               <h3 className="font-display font-700 text-ink text-xl mt-1 mb-4">{property.title}</h3>
+              <p className="mb-4 text-sm text-ink/60">
+                Need current photos, amenity details, or help deciding? Our
+                support team can help before you book.
+              </p>
 
               <form onSubmit={handleSubmit} className="flex flex-col gap-3">
                 <input
                   placeholder="Your name"
+                  required
                   className="rounded-lg border border-ink/15 px-3 py-2.5 text-sm text-ink outline-none focus:border-gold-deep"
                   value={form.buyerName}
                   onChange={(e) => setForm({ ...form, buyerName: e.target.value })}
                 />
                 <input
                   type="email"
+                  required
                   placeholder="Your email"
                   className="rounded-lg border border-ink/15 px-3 py-2.5 text-sm text-ink outline-none focus:border-gold-deep"
                   value={form.buyerEmail}
                   onChange={(e) => setForm({ ...form, buyerEmail: e.target.value })}
                 />
                 <input
+                  type="tel"
                   placeholder="Your phone"
+                  required
                   className="rounded-lg border border-ink/15 px-3 py-2.5 text-sm text-ink outline-none focus:border-gold-deep"
                   value={form.buyerPhone}
                   onChange={(e) => setForm({ ...form, buyerPhone: e.target.value })}
                 />
                 <textarea
-                  placeholder="Message (optional)"
+                  placeholder="What would you like to know?"
                   rows={3}
                   className="rounded-lg border border-ink/15 px-3 py-2.5 text-sm text-ink outline-none focus:border-gold-deep resize-none"
                   value={form.message}
