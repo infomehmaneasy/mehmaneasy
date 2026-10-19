@@ -1,119 +1,163 @@
 import { NextResponse } from "next/server";
-import dbConnect from "@/lib/mongodb";
-import { Property } from "@/lib/models";
-import { adminAuth } from "@/lib/firebaseAdmin";
-import { toPublicProperty, toPropertyUpdate } from "@/lib/propertyData";
+import {
+  getAuthenticatedSupabaseUser,
+  getSupabaseForRequest,
+} from "@/lib/supabaseServer";
+import { toPropertyUpdate, toPublicProperty } from "@/lib/propertyData";
 
-async function getUserFromRequest(req) {
-  const authHeader = req.headers.get("authorization");
-  if (!authHeader || !authHeader.startsWith("Bearer ")) return null;
-  const token = authHeader.split("Bearer ")[1];
-  try {
-    return await adminAuth.verifyIdToken(token);
-  } catch (e) {
-    return null;
-  }
+export const dynamic = "force-dynamic";
+
+function withPrivateData(property, privateData) {
+  if (!privateData) return { ...property, _id: property.id };
+  return {
+    ...property,
+    ...privateData,
+    _id: property.id,
+    location: {
+      type: "Point",
+      coordinates: [privateData.longitude, privateData.latitude],
+    },
+  };
 }
 
 export async function GET(req, { params }) {
   try {
-    const { id } = params;
-    const user = await getUserFromRequest(req);
-    await dbConnect();
-    const property = await Property.findOne({
-      _id: id,
-      $or: [
-        { status: "active", verificationStatus: "approved" },
-        ...(user ? [{ ownerUid: user.uid }] : []),
-      ],
-    });
-    if (!property) {
-      return NextResponse.json({ error: "Property not found." }, { status: 404 });
+    const supabase = getSupabaseForRequest(req);
+    const user = await getAuthenticatedSupabaseUser(req, supabase);
+    const { data: property, error } = await supabase
+      .from("properties")
+      .select("*")
+      .eq("id", params.id)
+      .maybeSingle();
+    if (error) throw error;
+    if (!property) return NextResponse.json({ error: "Property not found." }, { status: 404 });
+
+    if (user) {
+      const { data: privateData, error: privateError } = await supabase
+        .from("property_private")
+        .select("*")
+        .eq("propertyId", params.id)
+        .maybeSingle();
+      if (privateError) throw privateError;
+      if (privateData?.ownerUid === user.id) {
+        return NextResponse.json({ property: withPrivateData(property, privateData) });
+      }
+      if (privateData) {
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("role")
+          .eq("id", user.id)
+          .maybeSingle();
+        if (profile?.role === "admin") {
+          return NextResponse.json({ property: withPrivateData(property, privateData) });
+        }
+      }
     }
 
-    return NextResponse.json({
-      property:
-        user && property.ownerUid === user.uid
-          ? property
-          : toPublicProperty(property),
-    });
+    return NextResponse.json({ property: toPublicProperty(property) });
   } catch (error) {
-    console.error("Error fetching property details:", error);
-    return NextResponse.json({ error: error.message || "Failed to load property details." }, { status: 500 });
+    console.error("Error fetching Supabase property:", error);
+    return NextResponse.json({ error: "Failed to load property details." }, { status: 500 });
   }
 }
 
 export async function PUT(req, { params }) {
   try {
-    const { id } = params;
-    const user = await getUserFromRequest(req);
-    if (!user) {
-      return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
-    }
-    await dbConnect();
+    const supabase = getSupabaseForRequest(req);
+    const user = await getAuthenticatedSupabaseUser(req, supabase);
+    if (!user) return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
 
-    const property = await Property.findById(id);
-    if (!property) {
-      return NextResponse.json({ error: "Property not found." }, { status: 404 });
-    }
-
-    if (property.ownerUid !== user.uid) {
-      return NextResponse.json({ error: "Forbidden: You are not the owner of this property." }, { status: 403 });
+    const { data: privateData, error: privateError } = await supabase
+      .from("property_private")
+      .select("*")
+      .eq("propertyId", params.id)
+      .eq("ownerUid", user.id)
+      .maybeSingle();
+    if (privateError) throw privateError;
+    if (!privateData) {
+      return NextResponse.json({ error: "Property not found or access denied." }, { status: 404 });
     }
 
     const payload = await req.json();
-    const updateData = toPropertyUpdate(payload);
-    const listingChanged = Object.keys(updateData).some((key) => key !== "status");
-    if (listingChanged) {
-      updateData.verificationStatus = "pending";
-      updateData.verificationNotes = "";
-      updateData.status = "pending_review";
+    const updates = toPropertyUpdate(payload);
+    const propertyUpdates = { ...updates };
+    delete propertyUpdates.address;
+    delete propertyUpdates.pincode;
+    delete propertyUpdates.latitude;
+    delete propertyUpdates.longitude;
+
+    const privateUpdates = {};
+    for (const field of ["address", "pincode", "latitude", "longitude"]) {
+      if (Object.hasOwn(updates, field)) privateUpdates[field] = updates[field];
+    }
+    if (Object.keys(privateUpdates).length) {
+      propertyUpdates.status = "pending_review";
     }
 
-    const updatedProperty = await Property.findByIdAndUpdate(id, updateData, {
-      new: true,
-      runValidators: true,
-    });
+    let updatedProperty = null;
+    if (Object.keys(propertyUpdates).length) {
+      const { data, error } = await supabase
+        .from("properties")
+        .update(propertyUpdates)
+        .eq("id", params.id)
+        .select("*")
+        .maybeSingle();
+      if (error) throw error;
+      updatedProperty = data;
+    }
 
-    return NextResponse.json({ success: true, property: updatedProperty });
+    let updatedPrivateData = privateData;
+    if (Object.keys(privateUpdates).length) {
+      const { data, error } = await supabase
+        .from("property_private")
+        .update(privateUpdates)
+        .eq("propertyId", params.id)
+        .eq("ownerUid", user.id)
+        .select("*")
+        .single();
+      if (error) throw error;
+      updatedPrivateData = data;
+    }
+
+    if (!updatedProperty) {
+      const { data, error } = await supabase
+        .from("properties")
+        .select("*")
+        .eq("id", params.id)
+        .single();
+      if (error) throw error;
+      updatedProperty = data;
+    }
+    return NextResponse.json({
+      success: true,
+      property: withPrivateData(updatedProperty, updatedPrivateData),
+    });
   } catch (error) {
-    if (
-      error.message === "Invalid listing status." ||
-      error.message.includes("latitude") ||
-      error.message.includes("longitude") ||
-      error.name === "ValidationError" ||
-      error.name === "CastError"
-    ) {
+    if (error.message?.includes("latitude") || error.message?.includes("longitude") || error.message === "Invalid listing status.") {
       return NextResponse.json({ error: error.message }, { status: 400 });
     }
-    console.error("Error updating property:", error);
-    return NextResponse.json({ error: error.message || "Failed to update property." }, { status: 500 });
+    console.error("Error updating Supabase property:", error);
+    return NextResponse.json({ error: "Failed to update property." }, { status: 500 });
   }
 }
 
 export async function DELETE(req, { params }) {
   try {
-    const { id } = params;
-    const user = await getUserFromRequest(req);
-    if (!user) {
-      return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
-    }
-    await dbConnect();
+    const supabase = getSupabaseForRequest(req);
+    const user = await getAuthenticatedSupabaseUser(req, supabase);
+    if (!user) return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
 
-    const property = await Property.findById(id);
-    if (!property) {
-      return NextResponse.json({ error: "Property not found." }, { status: 404 });
-    }
-
-    if (property.ownerUid !== user.uid) {
-      return NextResponse.json({ error: "Forbidden: You are not the owner of this property." }, { status: 403 });
-    }
-
-    await Property.findByIdAndDelete(id);
-
+    const { data: property, error } = await supabase
+      .from("properties")
+      .delete()
+      .eq("id", params.id)
+      .select("id")
+      .maybeSingle();
+    if (error) throw error;
+    if (!property) return NextResponse.json({ error: "Property not found or access denied." }, { status: 404 });
     return NextResponse.json({ success: true });
   } catch (error) {
-    console.error("Error deleting property:", error);
-    return NextResponse.json({ error: error.message || "Failed to delete property." }, { status: 500 });
+    console.error("Error deleting Supabase property:", error);
+    return NextResponse.json({ error: "Failed to delete property." }, { status: 500 });
   }
 }

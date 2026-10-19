@@ -1,36 +1,39 @@
 import { NextResponse } from "next/server";
-import dbConnect from "@/lib/mongodb";
-import { Property } from "@/lib/models";
-import { getAdminUser } from "@/lib/adminAuth";
+import { getAdminSupabaseContext } from "@/lib/supabaseServer";
+
+export const dynamic = "force-dynamic";
 
 export async function GET(req) {
-  if (!process.env.ADMIN_EMAILS) {
-    return NextResponse.json({ error: "Admin access is not configured." }, { status: 503 });
-  }
-  const admin = await getAdminUser(req);
-  if (!admin) {
-    return NextResponse.json({ error: "Admin access required." }, { status: 403 });
-  }
-
   try {
-    await dbConnect();
-    const properties = await Property.find({
-      status: { $in: ["pending_review", "active"] },
-      $or: [
-        { verificationStatus: "pending" },
-        { verificationStatus: { $exists: false } },
-      ],
-    })
-      .sort({ createdAt: 1 })
-      .limit(100)
-      .lean();
+    const context = await getAdminSupabaseContext(req);
+    if (context.error) {
+      return NextResponse.json({ error: context.error }, { status: context.status });
+    }
 
-    return NextResponse.json({ properties });
+    const { data: properties, error } = await context.supabase
+      .from("properties")
+      .select("*")
+      .in("status", ["pending_review", "active"])
+      .eq("verificationStatus", "pending")
+      .order("createdAt", { ascending: true })
+      .limit(100);
+    if (error) throw error;
+
+    const ids = (properties || []).map((property) => property.id);
+    const { data: privateData, error: privateError } = ids.length
+      ? await context.supabase.from("property_private").select("*").in("propertyId", ids)
+      : { data: [], error: null };
+    if (privateError) throw privateError;
+    const privateById = new Map((privateData || []).map((item) => [item.propertyId, item]));
+    return NextResponse.json({
+      properties: (properties || []).map((property) => ({
+        ...property,
+        ...privateById.get(property.id),
+        _id: property.id,
+      })),
+    });
   } catch (error) {
-    console.error("Error loading property verification queue:", error);
-    return NextResponse.json(
-      { error: "Unable to load the property verification queue." },
-      { status: 500 }
-    );
+    console.error("Error loading Supabase verification queue:", error);
+    return NextResponse.json({ error: "Unable to load the property verification queue." }, { status: 500 });
   }
 }

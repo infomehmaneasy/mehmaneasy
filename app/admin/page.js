@@ -6,7 +6,7 @@ import Navbar from "@/components/Navbar";
 import { useAuth } from "@/context/AuthContext";
 
 export default function AdminPage() {
-  const { user, loading: authLoading } = useAuth();
+  const { user, loading: authLoading, getAccessToken } = useAuth();
   const [properties, setProperties] = useState([]);
   const [enquiries, setEnquiries] = useState([]);
   const [activeTab, setActiveTab] = useState("properties");
@@ -21,7 +21,7 @@ export default function AdminPage() {
     setLoading(true);
     setError("");
     try {
-      const token = await user.getIdToken();
+      const token = await getAccessToken();
       const headers = { Authorization: `Bearer ${token}` };
       const [propertyResponse, enquiryResponse] = await Promise.all([
         fetch("/api/admin/properties", { headers }),
@@ -44,7 +44,7 @@ export default function AdminPage() {
     } finally {
       setLoading(false);
     }
-  }, [user]);
+  }, [getAccessToken, user]);
 
   useEffect(() => {
     if (authLoading) return;
@@ -62,7 +62,7 @@ export default function AdminPage() {
     setError("");
     setMessage("");
     try {
-      const token = await user.getIdToken();
+      const token = await getAccessToken();
       const response = await fetch(`/api/admin/properties/${property._id}`, {
         method: "PATCH",
         headers: {
@@ -91,7 +91,7 @@ export default function AdminPage() {
     setError("");
     setMessage("");
     try {
-      const token = await user.getIdToken();
+      const token = await getAccessToken();
       const response = await fetch("/api/admin/enquiries", {
         method: "PATCH",
         headers: {

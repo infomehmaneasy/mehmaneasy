@@ -1,70 +1,57 @@
 import { NextResponse } from "next/server";
-import mongoose from "mongoose";
-import dbConnect from "@/lib/mongodb";
-import { Enquiry } from "@/lib/models";
-import { getAdminUser } from "@/lib/adminAuth";
+import { getAdminSupabaseContext } from "@/lib/supabaseServer";
 
-async function authorize(req) {
-  if (!process.env.ADMIN_EMAILS) {
-    return { response: NextResponse.json({ error: "Admin access is not configured." }, { status: 503 }) };
-  }
-  const admin = await getAdminUser(req);
-  if (!admin) {
-    return { response: NextResponse.json({ error: "Admin access required." }, { status: 403 }) };
-  }
-  return { admin };
-}
+export const dynamic = "force-dynamic";
 
 export async function GET(req) {
-  const authorization = await authorize(req);
-  if (authorization.response) return authorization.response;
-  if (!process.env.SUPPORT_EMAIL?.trim()) {
-    return NextResponse.json({ error: "Guest support is not configured." }, { status: 503 });
-  }
-
   try {
-    await dbConnect();
-    const enquiries = await Enquiry.find({
-      recipientEmail: process.env.SUPPORT_EMAIL?.trim(),
-      status: "new",
-    })
-      .sort({ createdAt: -1 })
-      .limit(100)
-      .lean();
+    const context = await getAdminSupabaseContext(req);
+    if (context.error) {
+      return NextResponse.json({ error: context.error }, { status: context.status });
+    }
+    const supportEmail = process.env.SUPPORT_EMAIL?.trim();
+    if (!supportEmail) {
+      return NextResponse.json({ error: "Guest support is not configured." }, { status: 503 });
+    }
+
+    const { data: enquiries, error } = await context.supabase
+      .from("enquiries")
+      .select("*")
+      .eq("recipientEmail", supportEmail)
+      .eq("status", "new")
+      .order("createdAt", { ascending: false })
+      .limit(100);
+    if (error) throw error;
     return NextResponse.json({ enquiries });
   } catch (error) {
-    console.error("Error loading support enquiries:", error);
+    console.error("Error loading Supabase support enquiries:", error);
     return NextResponse.json({ error: "Unable to load support enquiries." }, { status: 500 });
   }
 }
 
 export async function PATCH(req) {
-  const authorization = await authorize(req);
-  if (authorization.response) return authorization.response;
-  if (!process.env.SUPPORT_EMAIL?.trim()) {
-    return NextResponse.json({ error: "Guest support is not configured." }, { status: 503 });
-  }
-
   try {
+    const context = await getAdminSupabaseContext(req);
+    if (context.error) {
+      return NextResponse.json({ error: context.error }, { status: context.status });
+    }
     const { enquiryId } = await req.json();
-    if (!mongoose.isValidObjectId(enquiryId)) {
+    const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+    if (!uuidPattern.test(enquiryId || "")) {
       return NextResponse.json({ error: "Invalid enquiry ID." }, { status: 400 });
     }
-    await dbConnect();
-    const enquiry = await Enquiry.findOneAndUpdate(
-      {
-        _id: enquiryId,
-        recipientEmail: process.env.SUPPORT_EMAIL?.trim(),
-      },
-      { status: "reviewed" },
-      { new: true, runValidators: true }
-    );
-    if (!enquiry) {
-      return NextResponse.json({ error: "Support enquiry not found." }, { status: 404 });
-    }
+
+    const { data: enquiry, error } = await context.supabase
+      .from("enquiries")
+      .update({ status: "reviewed" })
+      .eq("id", enquiryId)
+      .select("id")
+      .maybeSingle();
+    if (error) throw error;
+    if (!enquiry) return NextResponse.json({ error: "Support enquiry not found." }, { status: 404 });
     return NextResponse.json({ success: true });
   } catch (error) {
-    console.error("Error updating support enquiry:", error);
+    console.error("Error updating Supabase support enquiry:", error);
     return NextResponse.json({ error: "Unable to update support enquiry." }, { status: 500 });
   }
 }

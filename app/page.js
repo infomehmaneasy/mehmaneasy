@@ -90,17 +90,21 @@ export default function HomePage() {
     async function loadProperties() {
       try {
         const response = await fetch("/api/properties");
-        if (!response.ok) {
-          throw new Error(`Property request failed (${response.status})`);
-        }
         const data = await response.json();
+        if (!response.ok) {
+          throw new Error(data.error || `Property request failed (${response.status})`);
+        }
         if (active) {
           setProperties((data.properties || []).slice(0, 4));
         }
       } catch (error) {
         console.error("Unable to load featured stays:", error);
         if (active) {
-          setLoadError("We couldn’t load the stay collection right now.");
+          setLoadError(
+            error instanceof Error
+              ? error.message
+              : "We couldn’t load the stay collection right now."
+          );
         }
       } finally {
         if (active) setLoading(false);
@@ -398,7 +402,7 @@ export default function HomePage() {
                 We hit a little travel snag
               </h3>
               <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-[#758078]">
-                {loadError} Please try again in a moment.
+                {loadError}
               </p>
               <button
                 type="button"

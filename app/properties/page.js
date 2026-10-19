@@ -59,17 +59,23 @@ export default function PropertiesListingPage() {
     (async () => {
       try {
         const res = await fetch("/api/properties");
-        if (!res.ok) {
-          throw new Error(`Property request failed (${res.status})`);
-        }
         const data = await res.json();
+        if (!res.ok) {
+          throw new Error(data.error || `Property request failed (${res.status})`);
+        }
         if (active) {
           setProperties(data.properties || []);
           setFilteredProperties(data.properties || []);
         }
       } catch (e) {
         console.error("Error loading properties:", e);
-        if (active) setLoadError("We couldn’t load the stay collection right now.");
+        if (active) {
+          setLoadError(
+            e instanceof Error
+              ? e.message
+              : "We couldn’t load the stay collection right now."
+          );
+        }
       } finally {
         if (active) setLoading(false);
       }
@@ -90,9 +96,7 @@ export default function PropertiesListingPage() {
       result = result.filter(
         (p) =>
           p.title?.toLowerCase().includes(term) ||
-          p.city?.toLowerCase().includes(term) ||
-          p.address?.toLowerCase().includes(term) ||
-          p.pincode?.includes(term)
+          p.city?.toLowerCase().includes(term)
       );
     }
 
@@ -152,7 +156,7 @@ export default function PropertiesListingPage() {
     } else if (sortBy === "area_desc") {
       result.sort((a, b) => Number(b.area) - Number(a.area));
     } else {
-      // Default: Newest first (using Mongo ID timestamp or creation date)
+      // Default: show featured and newest stays first.
       result.sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
     }
 
@@ -388,7 +392,7 @@ export default function PropertiesListingPage() {
               We hit a little travel snag
             </p>
             <p className="mx-auto mt-2 max-w-sm text-sm leading-relaxed text-[#65716a]">
-              {loadError} Please try again in a moment.
+              {loadError}
             </p>
             <button
               type="button"

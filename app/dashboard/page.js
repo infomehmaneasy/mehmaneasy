@@ -8,7 +8,7 @@ import Navbar from "@/components/Navbar";
 import { useAuth } from "@/context/AuthContext";
 
 export default function DashboardPage() {
-  const { user, profile, loading: authLoading, refreshProfile } = useAuth();
+  const { user, profile, loading: authLoading, refreshProfile, setRole, getAccessToken } = useAuth();
   const [listings, setListings] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -20,8 +20,8 @@ export default function DashboardPage() {
     setLoading(true);
     setError("");
     try {
-      const token = await user.getIdToken();
-      const response = await fetch(`/api/properties?ownerUid=${encodeURIComponent(user.uid)}`, {
+      const token = await getAccessToken();
+      const response = await fetch(`/api/properties?ownerUid=${encodeURIComponent(user.id)}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       const data = await response.json();
@@ -33,7 +33,7 @@ export default function DashboardPage() {
     } finally {
       setLoading(false);
     }
-  }, [user]);
+  }, [getAccessToken, user]);
 
   useEffect(() => {
     if (!authLoading) {
@@ -48,7 +48,7 @@ export default function DashboardPage() {
     setError("");
     const status = property.status === "active" ? "inactive" : "active";
     try {
-      const token = await user.getIdToken();
+      const token = await getAccessToken();
       const response = await fetch(`/api/properties/${property.id}`, {
         method: "PUT",
         headers: {
@@ -74,7 +74,7 @@ export default function DashboardPage() {
     setBusyId(property.id);
     setError("");
     try {
-      const token = await user.getIdToken();
+      const token = await getAccessToken();
       const response = await fetch(`/api/properties/${property.id}`, {
         method: "DELETE",
         headers: { Authorization: `Bearer ${token}` },
@@ -93,7 +93,7 @@ export default function DashboardPage() {
     setUpgrading(true);
     setError("");
     try {
-      const token = await user.getIdToken();
+      const token = await getAccessToken();
       const response = await fetch("/api/auth/profile", {
         method: "PATCH",
         headers: {

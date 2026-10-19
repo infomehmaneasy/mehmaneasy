@@ -1,22 +1,20 @@
 import { NextResponse } from "next/server";
-import mongoose from "mongoose";
-import dbConnect from "@/lib/mongodb";
-import { Property } from "@/lib/models";
-import { getAdminUser } from "@/lib/adminAuth";
+import { getAdminSupabaseContext } from "@/lib/supabaseServer";
+
+export const dynamic = "force-dynamic";
+
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 export async function PATCH(req, { params }) {
-  if (!process.env.ADMIN_EMAILS) {
-    return NextResponse.json({ error: "Admin access is not configured." }, { status: 503 });
-  }
-  const admin = await getAdminUser(req);
-  if (!admin) {
-    return NextResponse.json({ error: "Admin access required." }, { status: 403 });
-  }
-  if (!mongoose.isValidObjectId(params.id)) {
-    return NextResponse.json({ error: "Invalid property ID." }, { status: 400 });
-  }
-
   try {
+    const context = await getAdminSupabaseContext(req);
+    if (context.error) {
+      return NextResponse.json({ error: context.error }, { status: context.status });
+    }
+    if (!UUID_PATTERN.test(params.id)) {
+      return NextResponse.json({ error: "Invalid property ID." }, { status: 400 });
+    }
+
     const { action, notes = "" } = await req.json();
     if (!["approve", "reject"].includes(action)) {
       return NextResponse.json({ error: "Choose approve or reject." }, { status: 400 });
@@ -28,25 +26,24 @@ export async function PATCH(req, { params }) {
       return NextResponse.json({ error: "Add an improvement note before rejecting a listing." }, { status: 400 });
     }
 
-    await dbConnect();
-    const property = await Property.findByIdAndUpdate(
-      params.id,
-      {
+    const { data: property, error } = await context.supabase
+      .from("properties")
+      .update({
         verificationStatus: action === "approve" ? "approved" : "rejected",
         verificationNotes: notes.trim(),
         status: action === "approve" ? "active" : "rejected",
-        reviewedAt: new Date(),
-        reviewedBy: admin.email,
-      },
-      { new: true, runValidators: true }
-    );
-    if (!property) {
-      return NextResponse.json({ error: "Property not found." }, { status: 404 });
-    }
+        reviewedAt: new Date().toISOString(),
+        reviewedBy: context.user.email || context.user.id,
+      })
+      .eq("id", params.id)
+      .select("*")
+      .maybeSingle();
+    if (error) throw error;
+    if (!property) return NextResponse.json({ error: "Property not found." }, { status: 404 });
 
     return NextResponse.json({ success: true, property });
   } catch (error) {
-    console.error("Error reviewing property:", error);
+    console.error("Error reviewing Supabase property:", error);
     return NextResponse.json({ error: "Unable to update the property review." }, { status: 500 });
   }
 }

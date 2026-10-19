@@ -1,15 +1,7 @@
 "use client";
 
-import { createContext, useContext, useEffect, useState } from "react";
-import {
-  onAuthStateChanged,
-  signInWithEmailAndPassword,
-  signOut as fbSignOut,
-  GoogleAuthProvider,
-  signInWithPopup,
-} from "firebase/auth";
-import { auth, isFirebaseConfigured } from "@/lib/firebase";
-
+import { createContext, useCallback, useContext, useEffect, useState } from "react";
+import { supabase, isSupabaseConfigured } from "@/lib/supabase";
 
 const AuthContext = createContext(null);
 
@@ -18,93 +10,155 @@ export function AuthProvider({ children }) {
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  async function fetchProfile(fbUser) {
-    if (!fbUser) return null;
-    try {
-      const token = await fbUser.getIdToken();
-      const res = await fetch("/api/auth/profile", {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
-      if (res.ok) {
-        const data = await res.json();
-        return data.profile;
-      }
-    } catch (e) {
-      console.error("Error loading user profile from MongoDB:", e);
+  const fetchProfile = useCallback(async (session) => {
+    if (!session?.access_token) return null;
+    const response = await fetch("/api/auth/profile", {
+      headers: { Authorization: `Bearer ${session.access_token}` },
+    });
+    if (!response.ok) {
+      const data = await response.json();
+      throw new Error(data.error || "Unable to load your profile.");
     }
-    return null;
-  }
+    const data = await response.json();
+    return data.profile;
+  }, []);
+
+  const getAccessToken = useCallback(async () => {
+    if (!supabase) throw new Error("Supabase is not configured.");
+    const { data, error } = await supabase.auth.getSession();
+    if (error) throw error;
+    if (!data.session?.access_token) throw new Error("Please sign in again.");
+    return data.session.access_token;
+  }, []);
 
   useEffect(() => {
-    if (!isFirebaseConfigured) {
+    if (!isSupabaseConfigured) {
       setLoading(false);
       return;
     }
-    const unsub = onAuthStateChanged(auth, async (fbUser) => {
-      setUser(fbUser);
-      if (fbUser) {
-        const prof = await fetchProfile(fbUser);
-        setProfile(prof);
-      } else {
-        setProfile(null);
-      }
-      setLoading(false);
-    });
-    return unsub;
-  }, []);
 
-  // Save the registration details to sessionStorage. They will be submitted to the 
-  // server-side OTP verify API endpoint ONLY after the user enters the correct OTP.
-  async function registerWithEmail(registrationData) {
-    // Call server to send OTP first
-    const res = await fetch("/api/auth/register", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email: registrationData.email }),
+    let mounted = true;
+    supabase.auth.getSession().then(async ({ data, error }) => {
+      if (error) console.error("Unable to restore Supabase session:", error.message);
+      const session = data?.session;
+      if (mounted) {
+        setUser(session?.user || null);
+        try {
+          setProfile(session ? await fetchProfile(session) : null);
+        } catch (profileError) {
+          console.error("Unable to load Supabase profile:", profileError);
+        }
+        setLoading(false);
+      }
     });
-    const data = await res.json();
-    if (!res.ok) {
-      throw new Error(data.error || "Failed to trigger registration OTP.");
-    }
-    // Store in sessionStorage to verify during verify page
-    sessionStorage.setItem("registrationData", JSON.stringify(registrationData));
-    return { email: registrationData.email };
+
+    const { data: subscription } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user || null);
+      if (!session) {
+        setProfile(null);
+        setLoading(false);
+        return;
+      }
+      queueMicrotask(async () => {
+        try {
+          const nextProfile = await fetchProfile(session);
+          if (mounted) setProfile(nextProfile);
+        } catch (profileError) {
+          console.error("Unable to load Supabase profile:", profileError);
+        } finally {
+          if (mounted) setLoading(false);
+        }
+      });
+    });
+
+    return () => {
+      mounted = false;
+      subscription.subscription.unsubscribe();
+    };
+  }, [fetchProfile]);
+
+  async function registerWithEmail(registrationData) {
+    if (!supabase) throw new Error("Supabase is not configured.");
+    const { data, error } = await supabase.auth.signUp({
+      email: registrationData.email.trim().toLowerCase(),
+      password: registrationData.password,
+      options: {
+        emailRedirectTo: `${window.location.origin}/dashboard`,
+        data: {
+          name: registrationData.name.trim(),
+          phone: registrationData.phone.trim(),
+          place: registrationData.place.trim(),
+          pincode: registrationData.pincode.trim(),
+          role: registrationData.role,
+        },
+      },
+    });
+    if (error) throw error;
+    if (!data.user) throw new Error("Unable to create your account.");
+    return { email: data.user.email };
   }
 
   async function login(email, password) {
-    return signInWithEmailAndPassword(auth, email, password);
+    if (!supabase) throw new Error("Supabase is not configured.");
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+    if (error) throw error;
+    return data;
   }
 
-  async function loginWithGoogle() {
-    const provider = new GoogleAuthProvider();
-    return signInWithPopup(auth, provider);
+  async function loginWithGoogle(role) {
+    if (!supabase) throw new Error("Supabase is not configured.");
+    if (role) window.localStorage.setItem("pendingGoogleRole", role);
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: "google",
+      options: { redirectTo: `${window.location.origin}/auth/callback` },
+    });
+    if (error) throw error;
   }
 
   async function signOut() {
-    return fbSignOut(auth);
+    if (!supabase) return;
+    const { error } = await supabase.auth.signOut();
+    if (error) throw error;
   }
 
   async function refreshProfile() {
-    if (!auth.currentUser) return;
-    const prof = await fetchProfile(auth.currentUser);
-    setProfile(prof);
+    if (!supabase) return;
+    const { data, error } = await supabase.auth.getSession();
+    if (error) throw error;
+    setUser(data.session?.user || null);
+    setProfile(await fetchProfile(data.session));
   }
+
+  const setRole = useCallback(async (role) => {
+    if (!supabase) throw new Error("Supabase is not configured.");
+    const { data, error } = await supabase.rpc("set_my_role", { new_role: role });
+    if (error) throw error;
+    setProfile(data);
+    return data;
+  }, []);
 
   return (
     <AuthContext.Provider
-      value={{ user, profile, loading, registerWithEmail, login, loginWithGoogle, signOut, refreshProfile }}
+      value={{
+        user,
+        profile,
+        loading,
+        registerWithEmail,
+        login,
+        loginWithGoogle,
+        signOut,
+        refreshProfile,
+        setRole,
+        getAccessToken,
+      }}
     >
       {children}
     </AuthContext.Provider>
-
   );
 }
 
 export function useAuth() {
-  const ctx = useContext(AuthContext);
-  if (!ctx) throw new Error("useAuth must be used within AuthProvider");
-  return ctx;
+  const context = useContext(AuthContext);
+  if (!context) throw new Error("useAuth must be used within AuthProvider");
+  return context;
 }
-

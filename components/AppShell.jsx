@@ -2,8 +2,8 @@
 
 import { useState } from "react";
 import LoadingScreen from "@/components/LoadingScreen";
-import FirebaseSetupNotice from "@/components/FirebaseSetupNotice";
-import { isFirebaseConfigured } from "@/lib/firebase";
+import SupabaseSetupNotice from "@/components/SupabaseSetupNotice";
+import { isSupabaseConfigured } from "@/lib/supabase";
 import Footer from "@/components/Footer";
 
 import { useEffect } from "react";
@@ -33,8 +33,8 @@ export default function AppShell({ children }) {
     }
   }, [ready]);
 
-  if (!isFirebaseConfigured) {
-    return <FirebaseSetupNotice />;
+  if (!isSupabaseConfigured) {
+    return <SupabaseSetupNotice />;
   }
 
   return (
@@ -47,5 +47,4 @@ export default function AppShell({ children }) {
     </>
   );
 }
-
 

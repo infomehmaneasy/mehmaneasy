@@ -3,10 +3,9 @@
 import { useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { motion } from "framer-motion";
-import { getDownloadURL, ref, uploadBytes } from "firebase/storage";
+import { supabase } from "@/lib/supabase";
 import Navbar from "@/components/Navbar";
 import { useAuth } from "@/context/AuthContext";
-import { storage } from "@/lib/firebase";
 
 const PROPERTY_TYPES = [
   "Hotel",
@@ -39,7 +38,7 @@ const AMENITIES = [
 import { Suspense } from "react";
 
 function PostPropertyForm() {
-  const { user, profile } = useAuth();
+  const { user, profile, getAccessToken } = useAuth();
   const router = useRouter();
   const editId = useSearchParams().get("edit");
 
@@ -73,7 +72,7 @@ function PostPropertyForm() {
     if (!editId || !user) return;
     (async () => {
       try {
-        const token = await user.getIdToken();
+        const token = await getAccessToken();
         const res = await fetch(`/api/properties/${editId}`, {
           headers: { Authorization: `Bearer ${token}` },
         });
@@ -100,7 +99,7 @@ function PostPropertyForm() {
         setError(e.message || "Error loading listing for edit.");
       }
     })();
-  }, [editId, user]);
+  }, [editId, getAccessToken, user]);
 
   function update(k, v) {
     setForm((f) => ({ ...f, [k]: v }));
@@ -144,10 +143,16 @@ function PostPropertyForm() {
     try {
       const uploaded = [];
       for (const file of files) {
-        const path = `properties/${user.uid}/${Date.now()}-${file.name}`;
-        const r = ref(storage, path);
-        await uploadBytes(r, file);
-        uploaded.push(await getDownloadURL(r));
+        if (!["image/jpeg", "image/png", "image/webp", "image/avif"].includes(file.type) || file.size > 10 * 1024 * 1024) {
+          throw new Error("Use JPG, PNG, WebP, or AVIF photos up to 10 MB each.");
+        }
+        const fileName = file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
+        const path = `${user.id}/${crypto.randomUUID()}-${fileName}`;
+        const { error: uploadError } = await supabase.storage
+          .from("property-images")
+          .upload(path, file, { cacheControl: "3600", upsert: false });
+        if (uploadError) throw uploadError;
+        uploaded.push(supabase.storage.from("property-images").getPublicUrl(path).data.publicUrl);
       }
       const images = [...existingImages, ...uploaded];
 
@@ -165,7 +170,7 @@ function PostPropertyForm() {
         images,
       };
 
-      const token = await user.getIdToken();
+      const token = await getAccessToken();
       const url = editId ? `/api/properties/${editId}` : "/api/properties";
       const method = editId ? "PUT" : "POST";
 
