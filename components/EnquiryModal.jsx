@@ -102,7 +102,8 @@ export default function EnquiryModal({ property, onClose, initialMessage = "" })
                 <input
                   placeholder="Your name"
                   required
-                  className="rounded-lg border border-ink/15 px-3 py-2.5 text-sm text-ink outline-none focus:border-gold-deep"
+                  autoComplete="name"
+                  className="support-enquiry-field w-full rounded-lg border border-[#d8d9d2] bg-[#fffdf9] px-3 py-2.5 text-sm text-[#29352f] placeholder:text-[#758078] outline-none [color-scheme:light] focus:border-[#bd604a]"
                   value={form.buyerName}
                   onChange={(e) => setForm({ ...form, buyerName: e.target.value })}
                 />
@@ -110,7 +111,8 @@ export default function EnquiryModal({ property, onClose, initialMessage = "" })
                   type="email"
                   required
                   placeholder="Your email"
-                  className="rounded-lg border border-ink/15 px-3 py-2.5 text-sm text-ink outline-none focus:border-gold-deep"
+                  autoComplete="email"
+                  className="support-enquiry-field w-full rounded-lg border border-[#d8d9d2] bg-[#fffdf9] px-3 py-2.5 text-sm text-[#29352f] placeholder:text-[#758078] outline-none [color-scheme:light] focus:border-[#bd604a]"
                   value={form.buyerEmail}
                   onChange={(e) => setForm({ ...form, buyerEmail: e.target.value })}
                 />
@@ -118,14 +120,15 @@ export default function EnquiryModal({ property, onClose, initialMessage = "" })
                   type="tel"
                   placeholder="Your phone"
                   required
-                  className="rounded-lg border border-ink/15 px-3 py-2.5 text-sm text-ink outline-none focus:border-gold-deep"
+                  autoComplete="tel"
+                  className="support-enquiry-field w-full rounded-lg border border-[#d8d9d2] bg-[#fffdf9] px-3 py-2.5 text-sm text-[#29352f] placeholder:text-[#758078] outline-none [color-scheme:light] focus:border-[#bd604a]"
                   value={form.buyerPhone}
                   onChange={(e) => setForm({ ...form, buyerPhone: e.target.value })}
                 />
                 <textarea
                   placeholder="What would you like to know?"
                   rows={3}
-                  className="rounded-lg border border-ink/15 px-3 py-2.5 text-sm text-ink outline-none focus:border-gold-deep resize-none"
+                  className="support-enquiry-field w-full resize-none rounded-lg border border-[#d8d9d2] bg-[#fffdf9] px-3 py-2.5 text-sm text-[#29352f] placeholder:text-[#758078] outline-none [color-scheme:light] focus:border-[#bd604a]"
                   value={form.message}
                   onChange={(e) => setForm({ ...form, message: e.target.value })}
                 />

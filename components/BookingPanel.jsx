@@ -2,7 +2,8 @@
 
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
-import { CalendarDays, MapPin, RefreshCw, Users } from "lucide-react";
+import { AnimatePresence, motion } from "framer-motion";
+import { CalendarDays, CheckCircle2, MapPin, RefreshCw, Users, X } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 
 const STATUS_LABELS = {
@@ -25,13 +26,14 @@ function money(value) {
   return `₹${Number(value).toLocaleString("en-IN", { maximumFractionDigits: 2 })}`;
 }
 
-export default function BookingPanel({ direction, title, emptyTitle, emptyDetail }) {
+export default function BookingPanel({ direction, title, emptyTitle, emptyDetail, sharedData }) {
   const { user, getAccessToken } = useAuth();
   const [bookings, setBookings] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [busyId, setBusyId] = useState("");
   const [refreshing, setRefreshing] = useState(false);
+  const [confirmBooking, setConfirmBooking] = useState(null);
 
   const loadBookings = useCallback(async (refresh = false) => {
     if (!user) {
@@ -58,18 +60,18 @@ export default function BookingPanel({ direction, title, emptyTitle, emptyDetail
   }, [direction, getAccessToken, user]);
 
   useEffect(() => {
+    if (sharedData) return;
     if (user) loadBookings();
     else setLoading(false);
-  }, [loadBookings, user]);
+  }, [loadBookings, sharedData, user]);
 
   async function updateBooking(booking, action) {
     const confirmation = {
-      confirm: "Confirm this stay request? The guest will be told that payment is handled offline.",
       decline: "Decline this booking request?",
       cancel: "Cancel this stay request?",
       complete: "Mark this stay as completed?",
     }[action];
-    if (!window.confirm(confirmation)) return;
+    if (confirmation && !window.confirm(confirmation)) return;
     setBusyId(booking.id);
     setError("");
     try {
@@ -84,7 +86,8 @@ export default function BookingPanel({ direction, title, emptyTitle, emptyDetail
       });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || "Unable to update this booking.");
-      await loadBookings(true);
+      if (sharedData) await sharedData.refresh(true);
+      else await loadBookings(true);
     } catch (updateError) {
       setError(updateError.message || "Unable to update this booking.");
     } finally {
@@ -96,6 +99,11 @@ export default function BookingPanel({ direction, title, emptyTitle, emptyDetail
     direction === "admin" || (direction === "guest" && booking.guest_id === user?.id) ||
     (direction === "host" && booking.host_id === user?.id)
   );
+  const currentBookings = sharedData?.bookings || visibleBookings;
+  const currentLoading = sharedData?.loading ?? loading;
+  const currentError = sharedData?.error || error;
+  const currentRefreshing = sharedData?.refreshing ?? refreshing;
+  const refresh = sharedData ? () => sharedData.refresh(true) : () => loadBookings(true);
   const today = new Date().toISOString().slice(0, 10);
 
   return (
@@ -109,23 +117,23 @@ export default function BookingPanel({ direction, title, emptyTitle, emptyDetail
         </div>
         <button
           type="button"
-          disabled={refreshing || loading}
-          onClick={() => loadBookings(true)}
+          disabled={currentRefreshing || currentLoading}
+          onClick={refresh}
           className="inline-flex items-center gap-2 rounded-full border border-[#d8d9d2] px-3 py-2 text-xs font-semibold text-[#526058] disabled:opacity-50"
         >
-          <RefreshCw size={14} className={refreshing ? "animate-spin" : ""} />
+          <RefreshCw size={14} className={currentRefreshing ? "animate-spin" : ""} />
           Refresh
         </button>
       </div>
 
-      {error && (
+      {currentError && (
         <p role="alert" className="mt-4 rounded-2xl bg-[#fff1ed] p-4 text-sm text-[#8d392c]">
-          {error}
+          {currentError}
         </p>
       )}
-      {loading ? (
+      {currentLoading ? (
         <div className="mt-5 h-28 animate-pulse rounded-3xl bg-[#f0eee8]" />
-      ) : visibleBookings.length === 0 ? (
+      ) : currentBookings.length === 0 ? (
         <div className="mt-5 rounded-3xl border border-dashed border-[#d8d5cc] bg-white px-6 py-9">
           <h3 className="font-semibold">{emptyTitle}</h3>
           <p className="mt-2 text-sm leading-6 text-[#758078]">{emptyDetail}</p>
@@ -137,7 +145,7 @@ export default function BookingPanel({ direction, title, emptyTitle, emptyDetail
         </div>
       ) : (
         <div className="mt-5 grid gap-4">
-          {visibleBookings.map((booking) => {
+          {currentBookings.map((booking) => {
             const property = booking.property;
             const isParticipant = direction !== "admin";
             const canCancel = booking.status === "requested" ||
@@ -193,7 +201,7 @@ export default function BookingPanel({ direction, title, emptyTitle, emptyDetail
                     ) : null}
                     {(direction === "host" || direction === "admin") && booking.status === "requested" && (
                       <div className="mt-4 flex flex-wrap gap-2">
-                        <button type="button" disabled={busyId === booking.id} onClick={() => updateBooking(booking, "confirm")} className="rounded-full bg-[#20372f] px-4 py-2 text-xs font-semibold text-white disabled:opacity-50">Confirm stay (offline payment)</button>
+                        <button type="button" disabled={busyId === booking.id} onClick={() => setConfirmBooking(booking)} className="rounded-full bg-[#20372f] px-4 py-2 text-xs font-semibold text-white disabled:opacity-50">Review & confirm stay</button>
                         <button type="button" disabled={busyId === booking.id} onClick={() => updateBooking(booking, "decline")} className="rounded-full border border-[#e5c6bb] px-4 py-2 text-xs font-semibold text-[#8d392c] disabled:opacity-50">Decline request</button>
                       </div>
                     )}
@@ -220,6 +228,81 @@ export default function BookingPanel({ direction, title, emptyTitle, emptyDetail
           })}
         </div>
       )}
+      <AnimatePresence>
+        {confirmBooking && (
+          <motion.div
+            className="fixed inset-0 z-[210] flex items-center justify-center bg-[#14231e]/55 p-4 backdrop-blur-sm"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={() => setConfirmBooking(null)}
+          >
+            <motion.section
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="confirm-stay-title"
+              className="w-full max-w-md rounded-3xl border border-[#e8e7e1] bg-[#fffdf9] p-6 shadow-2xl sm:p-8"
+              initial={{ opacity: 0, y: 18, scale: 0.97 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 12, scale: 0.98 }}
+              onClick={(event) => event.stopPropagation()}
+            >
+              <div className="flex items-start justify-between gap-4">
+                <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#edf5ef] text-[#376247]">
+                  <CheckCircle2 size={24} />
+                </div>
+                <button
+                  type="button"
+                  aria-label="Close confirmation"
+                  onClick={() => setConfirmBooking(null)}
+                  className="rounded-full p-2 text-[#65716a] transition hover:bg-[#f0eee8] hover:text-[#29352f]"
+                >
+                  <X size={18} />
+                </button>
+              </div>
+              <p className="mt-5 text-xs font-semibold uppercase tracking-[0.16em] text-[#bd604a]">
+                Host decision
+              </p>
+              <h2 id="confirm-stay-title" className="mt-2 text-2xl font-semibold tracking-tight text-[#29352f]">
+                Confirm {confirmBooking.property?.title || "this stay"}?
+              </h2>
+              <p className="mt-3 text-sm leading-6 text-[#526058]">
+                This confirms the guest&apos;s requested dates. They&apos;ll receive a confirmation and arrange payment directly with you; Mehmaan Easy will not collect payment.
+              </p>
+              <div className="mt-5 rounded-2xl border border-[#e8e7e1] bg-[#f7f5f1] p-4 text-sm text-[#526058]">
+                <p className="font-semibold text-[#29352f]">
+                  {formatDate(confirmBooking.check_in)} – {formatDate(confirmBooking.check_out)}
+                </p>
+                <p className="mt-1">{confirmBooking.guests} guests · {confirmBooking.nights} nights</p>
+                <p className="mt-2 border-t border-[#e2dfd7] pt-2">
+                  Stay subtotal <strong className="text-[#29352f]">{money(confirmBooking.subtotal)}</strong>
+                </p>
+              </div>
+              <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+                <button
+                  type="button"
+                  onClick={() => setConfirmBooking(null)}
+                  className="rounded-full border border-[#d8d9d2] px-5 py-3 text-sm font-semibold text-[#34433b] transition hover:bg-[#f7f5f1]"
+                >
+                  Review later
+                </button>
+                <button
+                  type="button"
+                  disabled={busyId === confirmBooking.id}
+                  onClick={() => {
+                    const booking = confirmBooking;
+                    setConfirmBooking(null);
+                    updateBooking(booking, "confirm");
+                  }}
+                  className="rounded-full bg-[#20372f] px-5 py-3 text-sm font-semibold text-white transition hover:bg-[#2d4a40] disabled:opacity-50"
+                >
+                  {busyId === confirmBooking.id ? "Confirming…" : "Confirm stay request"}
+                </button>
+              </div>
+            </motion.section>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </section>
   );
 }

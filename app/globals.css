@@ -22,6 +22,14 @@ a:focus-visible, button:focus-visible, input:focus-visible, textarea:focus-visib
   outline-offset: 2px;
 }
 
+.support-enquiry-field:-webkit-autofill,
+.support-enquiry-field:-webkit-autofill:hover,
+.support-enquiry-field:-webkit-autofill:focus {
+  -webkit-text-fill-color: #29352f;
+  box-shadow: 0 0 0 1000px #fffdf9 inset;
+  transition: background-color 9999s ease-out 0s;
+}
+
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
     animation-duration: 0.001ms !important;

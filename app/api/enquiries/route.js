@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import nodemailer from "nodemailer";
 import { getSupabaseForRequest } from "@/lib/supabaseServer";
+import { getSupportEmail } from "@/lib/support";
 
 export const dynamic = "force-dynamic";
 
@@ -31,10 +32,7 @@ function brandedEmail({ title, bodyHtml }) {
 
 export async function POST(req) {
   try {
-    const supportEmail = process.env.SUPPORT_EMAIL?.trim();
-    if (!supportEmail) {
-      return NextResponse.json({ error: "Guest support is not configured." }, { status: 503 });
-    }
+    const supportEmail = getSupportEmail();
 
     const payload = await req.json();
     const propertyId = typeof payload.propertyId === "string" ? payload.propertyId : "";
@@ -70,7 +68,7 @@ export async function POST(req) {
     const propertyLink = process.env.NEXT_PUBLIC_APP_URL
       ? `${process.env.NEXT_PUBLIC_APP_URL.replace(/\/+$/, "")}/property/${property.id}`
       : "";
-    const { data: enquiry, error: enquiryError } = await supabase
+    const { error: enquiryError } = await supabase
       .from("enquiries")
       .insert({
         propertyId: property.id,
@@ -81,9 +79,7 @@ export async function POST(req) {
         message,
         propertyLink,
         propertyTitle: property.title,
-      })
-      .select("id")
-      .single();
+      });
     if (enquiryError) throw enquiryError;
 
     let notificationSent = false;
@@ -121,7 +117,7 @@ export async function POST(req) {
       }
     }
 
-    return NextResponse.json({ success: true, enquiryId: enquiry.id, notificationSent }, { status: 201 });
+    return NextResponse.json({ success: true, notificationSent }, { status: 201 });
   } catch (error) {
     console.error("Error creating Supabase support enquiry:", error);
     return NextResponse.json({ error: "Unable to submit your question." }, { status: 500 });

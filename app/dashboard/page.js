@@ -15,6 +15,10 @@ export default function DashboardPage() {
   const [error, setError] = useState("");
   const [busyId, setBusyId] = useState("");
   const [upgrading, setUpgrading] = useState(false);
+  const [hostBookings, setHostBookings] = useState([]);
+  const [hostBookingsLoading, setHostBookingsLoading] = useState(true);
+  const [hostBookingsError, setHostBookingsError] = useState("");
+  const [hostBookingsRefreshing, setHostBookingsRefreshing] = useState(false);
 
   const loadListings = useCallback(async () => {
     if (!user) return;
@@ -36,12 +40,43 @@ export default function DashboardPage() {
     }
   }, [getAccessToken, user]);
 
+  const loadHostBookings = useCallback(async (refresh = false) => {
+    if (!user) {
+      setHostBookingsLoading(false);
+      return;
+    }
+    if (refresh) setHostBookingsRefreshing(true);
+    else setHostBookingsLoading(true);
+    setHostBookingsError("");
+    try {
+      const token = await getAccessToken();
+      const response = await fetch("/api/bookings", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "Unable to load booking requests.");
+      setHostBookings(data.bookings || []);
+    } catch (loadError) {
+      console.error("Error loading host booking requests:", loadError);
+      setHostBookingsError(loadError.message || "Unable to load booking requests.");
+    } finally {
+      setHostBookingsLoading(false);
+      setHostBookingsRefreshing(false);
+    }
+  }, [getAccessToken, user]);
+
   useEffect(() => {
     if (!authLoading) {
-      if (user && profile) loadListings();
-      else setLoading(false);
+      if (user && profile) {
+        if (profile.role === "host") {
+          loadListings();
+          loadHostBookings();
+        } else {
+          setLoading(false);
+        }
+      } else setLoading(false);
     }
-  }, [authLoading, user, profile, loadListings]);
+  }, [authLoading, user, profile, loadListings, loadHostBookings]);
 
   async function setAvailability(property) {
     if (property.verificationStatus !== "approved") return;
@@ -113,7 +148,7 @@ export default function DashboardPage() {
     }
   }
 
-  if (authLoading || loading) {
+  if (authLoading) {
     return (
       <main className="min-h-screen bg-[#fffdf9]">
         <Navbar />
@@ -247,20 +282,33 @@ export default function DashboardPage() {
           title="Your trips"
           emptyTitle="No guest bookings"
           emptyDetail="Stays you request as a guest will appear here."
+          sharedData={{
+            bookings: hostBookings.filter((booking) => booking.direction === "guest"),
+            loading: hostBookingsLoading,
+            error: hostBookingsError,
+            refreshing: hostBookingsRefreshing,
+            refresh: loadHostBookings,
+          }}
         />
         <BookingPanel
           direction="host"
           title="Guest booking requests"
           emptyTitle="No booking requests"
           emptyDetail="Guest requests for your approved nightly stays will appear here."
+          sharedData={{
+            bookings: hostBookings.filter((booking) => booking.direction === "host"),
+            loading: hostBookingsLoading,
+            refreshing: hostBookingsRefreshing,
+            refresh: loadHostBookings,
+          }}
         />
 
         <div className="mt-8 grid gap-4 sm:grid-cols-3">
-          <SummaryCard label="Total listings" value={listings.length} />
-          <SummaryCard label="Awaiting review" value={pendingCount} />
+          <SummaryCard label="Total listings" value={loading ? "—" : listings.length} />
+          <SummaryCard label="Awaiting review" value={loading ? "—" : pendingCount} />
           <SummaryCard
             label="Published"
-            value={listings.filter((listing) => listing.verificationStatus === "approved" && listing.status === "active").length}
+            value={loading ? "—" : listings.filter((listing) => listing.verificationStatus === "approved" && listing.status === "active").length}
           />
         </div>
 
@@ -272,7 +320,9 @@ export default function DashboardPage() {
 
         <div className="mt-10">
           <h2 className="text-xl font-semibold">Your stays</h2>
-          {listings.length === 0 ? (
+          {loading ? (
+            <div className="mt-5 h-36 animate-pulse rounded-3xl bg-[#f0eee8]" />
+          ) : listings.length === 0 ? (
             <div className="mt-5 rounded-3xl border border-dashed border-[#d8d5cc] bg-white px-6 py-14 text-center">
               <h3 className="text-lg font-semibold">Your first stay starts here</h3>
               <p className="mt-2 text-sm text-[#758078]">

@@ -26,12 +26,14 @@ The application uses the public Supabase publishable key together with Postgres 
 4. Copy `.env.local.example` to `.env.local` if you do not already have one. Set:
    - `NEXT_PUBLIC_SUPABASE_URL`
    - `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`
-   - `SUPPORT_EMAIL`
+   - `SUPPORT_EMAIL` (optional; defaults to `info.mehmaneasy@gmail.com` for the support queue)
    - `GMAIL_EMAIL` and `GMAIL_APP_PASSWORD` if support-question email notifications are desired
    - `NEXT_PUBLIC_APP_URL`
 5. The migration creates the tables, RLS policies, role/verification functions, and the Storage bucket/policies. It contains no service-role key.
 6. Sign in to the admin account using Google. The exact `info.mehmaneasy@gmail.com` account receives `admin` only when Supabase confirms its Google identity; password-only sign-up cannot claim the admin role.
 7. SMTP is not needed for email/password sign-up while **Confirm email** is off. The project's `GMAIL_EMAIL` and `GMAIL_APP_PASSWORD` variables are for app-side support email and do not configure Supabase Auth's SMTP sender.
+
+Guest questions are saved to Supabase and appear in the admin support queue even when email notifications are not configured. Configure `GMAIL_EMAIL` and `GMAIL_APP_PASSWORD` to send support email notifications.
 
 ## Local development
 

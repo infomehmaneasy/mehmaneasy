@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getAdminSupabaseContext } from "@/lib/supabaseServer";
+import { getSupportEmail } from "@/lib/support";
 
 export const dynamic = "force-dynamic";
 
@@ -9,10 +10,7 @@ export async function GET(req) {
     if (context.error) {
       return NextResponse.json({ error: context.error }, { status: context.status });
     }
-    const supportEmail = process.env.SUPPORT_EMAIL?.trim();
-    if (!supportEmail) {
-      return NextResponse.json({ error: "Guest support is not configured." }, { status: 503 });
-    }
+    const supportEmail = getSupportEmail();
 
     const { data: enquiries, error } = await context.supabase
       .from("enquiries")

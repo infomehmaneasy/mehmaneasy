@@ -465,16 +465,42 @@ export default function PropertyDetailPage() {
                 </form>
               )}
               {bookingResult && (
-                <div role="status" className="mt-4 rounded-2xl bg-[#edf5ef] p-4 text-sm text-[#376247]">
-                  <p className="font-semibold">Request sent to the host</p>
-                  <p className="mt-1 text-xs leading-5">
-                    Reference {bookingResult.id.slice(0, 8)} · no payment was collected.
-                    You can check its status in your trips.
+                <motion.div
+                  role="status"
+                  aria-live="polite"
+                  initial={{ opacity: 0, y: 16, scale: 0.97 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  transition={{ type: "spring", stiffness: 260, damping: 22 }}
+                  className="relative mt-4 overflow-hidden rounded-2xl border border-[#cfe2d4] bg-gradient-to-br from-[#f0f8f1] to-[#e8f3eb] p-5 text-[#315e41] shadow-sm"
+                >
+                  <motion.span
+                    aria-hidden="true"
+                    className="absolute right-5 top-5 text-[#4f9365]"
+                    initial={{ scale: 0.3, rotate: -30 }}
+                    animate={{ scale: [0.3, 1.18, 1], rotate: 0 }}
+                    transition={{ duration: 0.65, ease: "easeOut" }}
+                  >
+                    <CheckCircle size={30} />
+                  </motion.span>
+                  <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[#4f795b]">
+                    Request received
                   </p>
-                  <Link href="/dashboard" className="mt-3 inline-flex text-xs font-semibold underline">
-                    View my trips
+                  <h3 className="mt-2 pr-10 text-lg font-semibold text-[#285437]">
+                    Wonderful choice! Your request is on its way.
+                  </h3>
+                  <p className="mt-2 text-sm leading-6 text-[#45634d]">
+                    The host will review your dates. We&apos;ll show their response in your trips. No payment has been collected, and your stay is not confirmed yet.
+                  </p>
+                  <p className="mt-3 text-xs font-medium text-[#587560]">
+                    Request reference · {bookingResult.id.slice(0, 8)}
+                  </p>
+                  <Link
+                    href="/dashboard"
+                    className="mt-4 inline-flex rounded-full bg-[#315e41] px-4 py-2.5 text-xs font-semibold text-white transition hover:bg-[#244b33]"
+                  >
+                    Track your request
                   </Link>
-                </div>
+                </motion.div>
               )}
               {!canRequestBooking && (
                 <p className="mt-4 text-xs leading-5 text-[#758078]">
