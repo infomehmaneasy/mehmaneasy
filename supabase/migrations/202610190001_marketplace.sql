@@ -106,6 +106,22 @@ create trigger on_auth_user_created
   after insert or update of email, email_confirmed_at on auth.users
   for each row execute procedure public.handle_new_auth_user();
 
+insert into public.profiles (id, email, name, phone, place, pincode, verified, role)
+select
+  u.id,
+  coalesce(u.email, ''),
+  coalesce(u.raw_user_meta_data ->> 'name', ''),
+  coalesce(u.raw_user_meta_data ->> 'phone', ''),
+  coalesce(u.raw_user_meta_data ->> 'place', ''),
+  coalesce(u.raw_user_meta_data ->> 'pincode', ''),
+  u.email_confirmed_at is not null,
+  case when u.raw_user_meta_data ->> 'role' = 'host' then 'host' else 'guest' end
+from auth.users u
+on conflict (id) do update set
+  email = excluded.email,
+  verified = excluded.verified,
+  "updatedAt" = now();
+
 create or replace function public.current_profile_role()
 returns text
 language sql
