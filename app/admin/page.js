@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { BadgeCheck, Clock3, ShieldAlert, Trash2 } from "lucide-react";
 import Navbar from "@/components/Navbar";
 import BookingPanel from "@/components/BookingPanel";
+import AdminExperienceManager from "@/components/AdminExperienceManager";
 import { useAuth } from "@/context/AuthContext";
 
 export default function AdminPage() {
@@ -13,6 +14,7 @@ export default function AdminPage() {
   const [marketplaceListings, setMarketplaceListings] = useState([]);
   const [activeTab, setActiveTab] = useState("properties");
   const [notes, setNotes] = useState({});
+  const [tiers, setTiers] = useState({});
   const [loading, setLoading] = useState(true);
   const [marketplaceLoading, setMarketplaceLoading] = useState(false);
   const [marketplaceLoaded, setMarketplaceLoaded] = useState(false);
@@ -100,7 +102,11 @@ export default function AdminPage() {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({ action, notes: reviewNotes }),
+        body: JSON.stringify({
+          action,
+          notes: reviewNotes,
+          stayTier: tiers[property._id] || property.stayTier || "Easy",
+        }),
       });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || "Unable to review stay.");
@@ -187,6 +193,7 @@ export default function AdminPage() {
             ["manage", `Marketplace listings (${marketplaceListings.length})`],
             ["enquiries", `Guest questions (${enquiries.length})`],
             ["bookings", "Bookings"],
+            ["experiences", "Experiences"],
           ].map(([tab, label]) => (
             <button
               key={tab}
@@ -237,24 +244,28 @@ export default function AdminPage() {
           <EmptyState title="No live marketplace listings" detail="Approved stays available to guests will appear here." />
         ) : user && !error && activeTab === "enquiries" && enquiries.length === 0 ? (
           <EmptyState title="No guest questions" detail="New pre-booking questions appear here." />
+        ) : activeTab === "experiences" ? (
+          <AdminExperienceManager />
         ) : activeTab === "bookings" ? (
           <BookingPanel
             direction="admin"
-            title="Booking oversight"
+            title="Booking oversight · read only"
             emptyTitle="No booking requests"
-            emptyDetail="Guest requests and host decisions will appear here."
+            emptyDetail="All guest requests and host decisions are visible here. Hosts handle booking decisions."
           />
         ) : activeTab === "properties" ? (
           <div className="mt-10 grid gap-5">
             {properties.map((property) => (
               <article key={property._id} className="overflow-hidden rounded-3xl border border-[#e8e7e1] bg-white">
-                <div className="grid gap-0 md:grid-cols-[280px_1fr]">
-                  <div className="grid min-h-56 grid-cols-2 gap-1 bg-[#f0eee8]">
-                    {(property.images || []).slice(0, 4).map((image) => (
-                      <img key={image} src={image} alt="" className="h-28 w-full object-cover md:h-full" />
+                <div>
+                  <div className="grid grid-cols-2 gap-1 bg-[#f0eee8] sm:grid-cols-3 lg:grid-cols-4">
+                    {(property.images || []).map((image, index) => (
+                      <a key={`${image}-${index}`} href={image} target="_blank" rel="noreferrer" aria-label={`Open full-size photo ${index + 1}`}>
+                        <img src={image} alt={`${property.title} photo ${index + 1}`} className="h-36 w-full object-cover sm:h-40" />
+                      </a>
                     ))}
                     {!property.images?.length && (
-                      <div className="col-span-2 flex items-center justify-center text-sm text-[#758078]">
+                      <div className="col-span-full flex h-36 items-center justify-center text-sm text-[#758078]">
                         No photos attached
                       </div>
                     )}
@@ -268,14 +279,51 @@ export default function AdminPage() {
                     </div>
                     <h2 className="mt-4 text-xl font-semibold text-[#29352f]">{property.title}</h2>
                     <p className="mt-1 text-sm text-[#65716a]">
-                      {property.propertyType || property.category} · {property.city} · Sleeps {property.capacity || 2}
+                      {property.propertyType || "Stay"} · {property.city}
                     </p>
                     <p className="mt-2 text-sm font-semibold text-[#34433b]">
-                      ₹{Number(property.price).toLocaleString("en-IN")} /{" "}
-                      {property.priceBasis || (property.category === "Rental" ? "month" : "listing")} ·{" "}
-                      {property.stayTier || "Collection not assigned"}
+                      ₹{Number(property.price).toLocaleString("en-IN")} / {property.priceBasis || "night"}
                     </p>
-                    <p className="mt-4 line-clamp-3 text-sm leading-6 text-[#758078]">{property.description}</p>
+                    <section className="mt-5">
+                      <h3 className="text-sm font-semibold text-[#34433b]">About this stay</h3>
+                      <p className="mt-2 whitespace-pre-line text-sm leading-6 text-[#65716a]">{property.description}</p>
+                    </section>
+                    <section className="mt-5">
+                      <h3 className="text-sm font-semibold text-[#34433b]">Listing details</h3>
+                      <dl className="mt-2 grid gap-x-5 gap-y-2 rounded-2xl bg-[#f7f5f1] p-4 text-xs text-[#526058] sm:grid-cols-2">
+                        <Detail label="Guests" value={property.capacity || 2} />
+                        <Detail label="Bedrooms" value={property.bedrooms ?? 0} />
+                        <Detail label="Bathrooms" value={property.bathrooms ?? 0} />
+                        <Detail label="Area" value={property.area ? `${property.area} sq ft` : "Not provided"} />
+                        <Detail label="Full address" value={[property.address, property.city, property.pincode].filter(Boolean).join(", ")} />
+                        <Detail label="Host email" value={property.ownerEmail} />
+                        <Detail label="Tourism license ID" value={property.tourismLicenseId || "Not provided"} />
+                        <Detail label="Cleaning fee" value={`₹${Number(property.cleaningFee || 0).toLocaleString("en-IN")}`} />
+                        <Detail label="Exact map pin" value={property.location?.coordinates?.join(", ") || "Not provided"} />
+                        <Detail label="Public exact pin" value={property.shareExactLocation ? "Yes" : "No"} />
+                      </dl>
+                    </section>
+                    {property.amenities?.length > 0 && (
+                      <section className="mt-5">
+                        <h3 className="text-sm font-semibold text-[#34433b]">Amenities and features</h3>
+                        <div className="mt-2 flex flex-wrap gap-2">
+                          {property.amenities.map((amenity) => (
+                            <span key={amenity} className="rounded-full bg-[#edf5ef] px-3 py-1.5 text-xs text-[#376247]">{amenity}</span>
+                          ))}
+                          {property.petFriendly && <span className="rounded-full bg-[#edf5ef] px-3 py-1.5 text-xs text-[#376247]">Pet friendly</span>}
+                        </div>
+                      </section>
+                    )}
+                    <label className="mt-5 block text-xs font-semibold text-[#526058]">
+                      Assign collection before approval
+                      <select
+                        value={tiers[property._id] || property.stayTier || "Easy"}
+                        onChange={(event) => setTiers((current) => ({ ...current, [property._id]: event.target.value }))}
+                        className="mt-2 w-full rounded-xl border border-[#e0e1dc] bg-white p-3 text-sm font-normal text-[#29352f] outline-none focus:border-[#bd604a]"
+                      >
+                        {["Easy", "Royal", "Gold"].map((tier) => <option key={tier} value={tier}>{tier}</option>)}
+                      </select>
+                    </label>
                     <label className="mt-5 block text-xs font-semibold text-[#526058]">
                       Review / improvement notes
                       <textarea
@@ -296,7 +344,7 @@ export default function AdminPage() {
                         onClick={() => reviewProperty(property, "approve")}
                         className="rounded-full bg-[#20372f] px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-[#2d4a40] disabled:opacity-50"
                       >
-                        Approve & publish
+                        Approve & publish as {tiers[property._id] || property.stayTier || "Easy"}
                       </button>
                       <button
                         type="button"
@@ -386,6 +434,15 @@ function EmptyState({ title, detail }) {
       <BadgeCheck className="mx-auto text-[#5b8a68]" size={30} />
       <h2 className="mt-4 text-lg font-semibold">{title}</h2>
       <p className="mt-2 text-sm text-[#758078]">{detail}</p>
+    </div>
+  );
+}
+
+function Detail({ label, value }) {
+  return (
+    <div>
+      <dt className="font-semibold text-[#34433b]">{label}</dt>
+      <dd className="mt-0.5 break-words">{value || "Not provided"}</dd>
     </div>
   );
 }

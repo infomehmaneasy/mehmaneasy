@@ -57,10 +57,18 @@ export async function GET(req) {
     const bookingIds = rows.map((booking) => booking.id);
     const [propertyResult, privateResult, contactsResult, profilesResult] = await Promise.all([
       propertyIds.length
-        ? supabase.from("properties").select("id,title,city,images").in("id", propertyIds)
+        ? supabase
+            .from("properties")
+            .select(profile.role === "admin" ? "*" : "id,title,city,images")
+            .in("id", propertyIds)
         : Promise.resolve({ data: [], error: null }),
       propertyIds.length
-        ? supabase.from("property_private").select('"propertyId",address,pincode').in("propertyId", propertyIds)
+        ? supabase
+            .from("property_private")
+            .select(profile.role === "admin"
+              ? '"propertyId",address,pincode,"tourismLicenseId"'
+              : '"propertyId",address,pincode')
+            .in("propertyId", propertyIds)
         : Promise.resolve({ data: [], error: null }),
       bookingIds.length
         ? supabase.from("booking_private").select("*").in("booking_id", bookingIds)
@@ -82,7 +90,9 @@ export async function GET(req) {
       bookings: rows.map((booking) => {
         const confirmed = ["confirmed", "completed"].includes(booking.status);
         const property = properties.get(booking.property_id) || null;
-        const privateStay = confirmed ? privateData.get(booking.property_id) : null;
+        const privateStay = profile.role === "admin" || confirmed
+          ? privateData.get(booking.property_id)
+          : null;
         const guestContact = bookingContacts.get(booking.id);
         const host = profiles.get(booking.host_id) || null;
         return {
@@ -90,7 +100,13 @@ export async function GET(req) {
           direction: booking.guest_id === user.id ? "guest" : booking.host_id === user.id ? "host" : "admin",
           property: property && {
             ...property,
-            ...(privateStay ? { address: privateStay.address, pincode: privateStay.pincode } : {}),
+            ...(privateStay ? {
+              address: privateStay.address,
+              pincode: privateStay.pincode,
+              ...(profile.role === "admin" && privateStay.tourismLicenseId
+                ? { tourismLicenseId: privateStay.tourismLicenseId }
+                : {}),
+            } : {}),
           },
           ...(host ? { host } : {}),
           ...(guestContact ? {

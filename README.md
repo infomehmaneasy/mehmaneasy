@@ -2,7 +2,9 @@
 
 **Stay Better. Book Easier.**
 
-Mehmaan Easy is an India-focused curated-stays marketplace. The current app includes guest discovery, host listing submission, verified listing moderation, and pre-booking questions for Mehmaan Easy support.
+Mehmaan Easy is an India-focused curated-stays marketplace. The current app includes guest discovery, host listing submission, verified listing moderation, host-managed booking requests, an admin-managed experiences catalogue, and real-time support chat.
+
+Guest discovery includes a persistent light/dark appearance preference, an interactive listings map with host-controlled exact pins and city-area fallbacks, and the interactive Décor Studio moodboards.
 
 ## Backend
 
@@ -21,6 +23,8 @@ The application uses the public Supabase publishable key together with Postgres 
    - [`supabase/migrations/202610190003_booking_contact_privacy.sql`](./supabase/migrations/202610190003_booking_contact_privacy.sql) restricts participant contact details until a booking is confirmed.
    - [`supabase/migrations/202610190004_admin_email_allowlist.sql`](./supabase/migrations/202610190004_admin_email_allowlist.sql) grants admin access only to the verified `info.mehmaneasy@gmail.com` account.
    - [`supabase/migrations/202610190005_email_auth_and_host_access.sql`](./supabase/migrations/202610190005_email_auth_and_host_access.sql) allows authenticated accounts to host and book without email confirmation, while preserving Google-only admin promotion.
+   - [`supabase/migrations/202610230001_public_property_map_pins.sql`](./supabase/migrations/202610230001_public_property_map_pins.sql) adds opt-in public map pins while keeping exact locations private by default.
+   - [`supabase/migrations/202610240001_host_licenses_experiences_booking_authority.sql`](./supabase/migrations/202610240001_host_licenses_experiences_booking_authority.sql) adds private tourism-license IDs, admin-managed experiences, and host/guest-only booking actions.
 2. In **Authentication → URL Configuration**, set the Site URL to `https://mehmaneasy-three.vercel.app` and add `http://localhost:3000/**` and `https://mehmaneasy-three.vercel.app/**` to the redirect allowlist. Google OAuth returns to `/auth/callback`.
 3. In **Authentication → Sign In / Providers**, keep Email enabled and turn **Confirm email** off for this test phase. This lets email/password sign-up create a usable session immediately; it does not prove mailbox ownership. Configure Google with a Google Cloud **Web application** OAuth client. Add Supabase's Google callback URL as an authorized redirect URI in Google Cloud, then put the client ID and client secret into Supabase's Google provider settings. Never add the client secret to `.env.local`, frontend code, or a `NEXT_PUBLIC_*` variable. The current Google consent screen is in **Testing**; only listed test users can use Google sign-in until the app is published and any required verification is completed.
 4. Copy `.env.local.example` to `.env.local` if you do not already have one. Set:
@@ -29,11 +33,13 @@ The application uses the public Supabase publishable key together with Postgres 
    - `SUPPORT_EMAIL` (optional; defaults to `info.mehmaneasy@gmail.com` for the support queue)
    - `GMAIL_EMAIL` and `GMAIL_APP_PASSWORD` if support-question email notifications are desired
    - `NEXT_PUBLIC_APP_URL`
-5. The migration creates the tables, RLS policies, role/verification functions, and the Storage bucket/policies. It contains no service-role key.
+   - `NEXT_PUBLIC_TAWK_PROPERTY_ID` and `NEXT_PUBLIC_TAWK_WIDGET_ID` (optional; default to the supplied Tawk.to widget)
+5. The migrations create the tables, RLS policies, role/verification functions, and the Storage bucket/policies. They contain no service-role key.
 6. Sign in to the admin account using Google. The exact `info.mehmaneasy@gmail.com` account receives `admin` only when Supabase confirms its Google identity; password-only sign-up cannot claim the admin role.
 7. SMTP is not needed for email/password sign-up while **Confirm email** is off. The project's `GMAIL_EMAIL` and `GMAIL_APP_PASSWORD` variables are for app-side support email and do not configure Supabase Auth's SMTP sender.
 
 Guest questions are saved to Supabase and appear in the admin support queue even when email notifications are not configured. Configure `GMAIL_EMAIL` and `GMAIL_APP_PASSWORD` to send support email notifications.
+The Tawk.to widget delivers live chats to the account's Tawk.to inbox; add the admin/team as agents in Tawk.to to receive and reply to those chats. This widget identifier is public embed configuration, not an API secret.
 
 ## Local development
 
@@ -56,11 +62,12 @@ npm run start
 3. An administrator signs in and opens `/admin` to approve or reject the listing with review notes.
 4. Only approved and active stays are shown in public discovery.
 5. A verified guest requests a future stay on a nightly-priced listing. This creates a request; it does not block availability or charge the guest.
-6. The host reviews requests in `/dashboard` and can confirm or decline. Confirmation checks for overlapping confirmed stays atomically. Admins can also review and manage bookings in `/admin`.
+6. The host reviews requests in `/dashboard` and can confirm or decline. Confirmation checks for overlapping confirmed stays atomically. The admin booking view in `/admin` is read-only; changes are allowed only for the actual guest or host on that booking.
 7. Confirmed booking details, including the private address and participant contact information, become visible only to the guest, host, and admins. Guests can cancel before check-in; hosts/admins can mark a past stay complete.
 8. The booking record displays the intended 70/30 split as a planning estimate, but payment status remains `not_collected`. Taxes and platform fees are not included. Money is arranged directly by the parties; the platform does not process payments.
 
 Public property data does not contain the full address, postal code, host email, or exact coordinates. Those fields live in `property_private` and are available only to the owner and admins. Editing listing details sends the stay back for review.
+Hosts can optionally store a tourism license ID, visible only to the listing owner and admins. Admins assign the Easy, Royal, or Gold collection when approving a property. Admins can publish experience listings at `/admin`; published experiences are available at `/experiences` and their detail pages.
 
 ## Current limits and migration notes
 

@@ -7,9 +7,11 @@ import { CheckCircle2, Clock3, Pencil, Plus, Trash2 } from "lucide-react";
 import Navbar from "@/components/Navbar";
 import BookingPanel from "@/components/BookingPanel";
 import { useAuth } from "@/context/AuthContext";
+import { useTheme } from "@/context/ThemeContext";
 
 export default function DashboardPage() {
   const { user, profile, profileError, loading: authLoading, refreshProfile, setRole, getAccessToken } = useAuth();
+  const { toggleTheme } = useTheme();
   const [listings, setListings] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -68,7 +70,7 @@ export default function DashboardPage() {
   useEffect(() => {
     if (!authLoading) {
       if (user && profile) {
-        if (profile.role === "host") {
+        if (profile.role === "host" || profile.role === "admin") {
           loadListings();
           loadHostBookings();
         } else {
@@ -141,6 +143,12 @@ export default function DashboardPage() {
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || "Unable to activate host access.");
       await refreshProfile();
+      try {
+        window.localStorage.setItem("mehmaan-easy:view-mode", "host");
+      } catch (storageError) {
+        console.error("Unable to save the host workspace preference:", storageError);
+      }
+      toggleTheme();
     } catch (upgradeError) {
       setError(upgradeError.message || "Unable to activate host access.");
     } finally {
@@ -198,28 +206,7 @@ export default function DashboardPage() {
     );
   }
 
-  if (profile.role === "admin") {
-    return (
-      <main className="min-h-screen bg-[#fffdf9] text-[#24302b]">
-        <Navbar />
-        <section className="mx-auto max-w-[1200px] px-5 pb-20 pt-32 sm:px-8">
-          <h1 className="text-3xl font-semibold">Welcome, {profile.name?.split(" ")[0] || "admin"}.</h1>
-          <p className="mt-2 text-sm text-[#65716a]">Your account has guest and marketplace administrator access.</p>
-          <BookingPanel
-            direction="guest"
-            title="Your trips"
-            emptyTitle="No trips yet"
-            emptyDetail="Booking requests and confirmed stays will appear here."
-          />
-          <Link href="/admin" className="mt-8 inline-flex rounded-full bg-[#20372f] px-5 py-3 text-sm font-semibold text-white">
-            Open admin workspace
-          </Link>
-        </section>
-      </main>
-    );
-  }
-
-  if (profile.role !== "host") {
+  if (profile.role !== "host" && profile.role !== "admin") {
     return (
       <main className="min-h-screen bg-[#fffdf9] text-[#24302b]">
         <Navbar />
@@ -252,6 +239,7 @@ export default function DashboardPage() {
   }
 
   const pendingCount = listings.filter((listing) => listing.verificationStatus !== "approved").length;
+  const isAdmin = profile.role === "admin";
 
   return (
     <main className="min-h-screen bg-[#fffdf9] text-[#24302b]">
@@ -260,21 +248,30 @@ export default function DashboardPage() {
         <div className="flex flex-wrap items-end justify-between gap-5">
           <div>
             <p className="mb-2 text-xs font-semibold uppercase tracking-[0.16em] text-[#bd604a]">
-              Host dashboard
+              {isAdmin ? "Admin host workspace" : "Host dashboard"}
             </p>
             <h1 className="text-3xl font-semibold tracking-[-0.04em] sm:text-4xl">
               Welcome, {profile.name?.split(" ")[0] || "host"}.
             </h1>
             <p className="mt-2 text-sm text-[#65716a]">
-              Manage your property details and verification status.
+              {isAdmin
+                ? "Your admin account can also host. Manage your listings and guest bookings here."
+                : "Manage your property details and verification status."}
             </p>
           </div>
-          <Link
-            href="/post"
-            className="inline-flex items-center gap-2 rounded-full bg-[#20372f] px-5 py-3 text-sm font-semibold text-white transition hover:bg-[#2d4a40]"
-          >
-            <Plus size={16} /> Add a stay
-          </Link>
+          <div className="flex flex-wrap gap-2">
+            {isAdmin && (
+              <Link href="/admin" className="rounded-full border border-[#d8d9d2] px-5 py-3 text-sm font-semibold text-[#34433b]">
+                Admin workspace
+              </Link>
+            )}
+            <Link
+              href="/post"
+              className="inline-flex items-center gap-2 rounded-full bg-[#20372f] px-5 py-3 text-sm font-semibold text-white transition hover:bg-[#2d4a40]"
+            >
+              <Plus size={16} /> Add a stay
+            </Link>
+          </div>
         </div>
 
         <BookingPanel
@@ -355,7 +352,9 @@ export default function DashboardPage() {
                         </span>
                       ) : (
                         <span className="inline-flex items-center gap-1 rounded-full bg-[#fff5e8] px-2.5 py-1 text-[11px] font-semibold text-[#8b5a18]">
-                          <Clock3 size={13} /> {property.verificationStatus || "Needs review"}
+                          <Clock3 size={13} /> {property.verificationStatus === "rejected"
+                            ? "Changes requested"
+                            : property.verificationStatus || "Needs review"}
                         </span>
                       )}
                     </div>
@@ -367,8 +366,8 @@ export default function DashboardPage() {
                       {property.priceBasis || (property.category === "Rental" ? "month" : "stay")}
                     </p>
                     {property.verificationNotes && (
-                      <p className="mt-2 text-xs leading-5 text-[#9b503e]">
-                        Improvement notes: {property.verificationNotes}
+                      <p className="mt-3 rounded-xl bg-[#fff1ed] px-3 py-2 text-xs leading-5 text-[#8d392c]">
+                        <strong>Changes requested:</strong> {property.verificationNotes}
                       </p>
                     )}
                   </div>
@@ -380,7 +379,7 @@ export default function DashboardPage() {
                       className="rounded-full border border-[#d8d9d2] px-3 py-2 text-xs font-semibold text-[#34433b] transition hover:bg-[#f7f5f1] disabled:cursor-not-allowed disabled:opacity-50"
                     >
                       {property.verificationStatus !== "approved"
-                        ? "Pending review"
+                        ? property.verificationStatus === "rejected" ? "Changes requested" : "Pending review"
                         : property.status === "active"
                           ? "Pause listing"
                           : "Make available"}

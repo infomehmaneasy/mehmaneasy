@@ -7,6 +7,8 @@ import { motion } from "framer-motion";
 import { supabase } from "@/lib/supabase";
 import Navbar from "@/components/Navbar";
 import { useAuth } from "@/context/AuthContext";
+import { parseMapCoordinates } from "@/lib/mapLocation";
+import { useTheme } from "@/context/ThemeContext";
 
 const PROPERTY_TYPES = [
   "Hotel",
@@ -19,7 +21,6 @@ const PROPERTY_TYPES = [
   "Holiday Home",
   "Serviced Apartment",
 ];
-const STAY_TIERS = ["Royal", "Gold", "Easy"];
 const AMENITIES = [
   "Wi-Fi",
   "Air conditioning",
@@ -40,6 +41,7 @@ import { Suspense } from "react";
 
 function PostPropertyForm() {
   const { user, profile, profileError, loading: authLoading, getAccessToken, setRole, refreshProfile } = useAuth();
+  const { toggleTheme } = useTheme();
   const router = useRouter();
   const editId = useSearchParams().get("edit");
 
@@ -62,8 +64,10 @@ function PostPropertyForm() {
     pincode: "",
     lat: "",
     lng: "",
+    shareExactLocation: false,
     isFeatured: false,
   });
+  const [mapLink, setMapLink] = useState("");
   const [files, setFiles] = useState([]);
   const [filePreviews, setFilePreviews] = useState([]);
   const [existingImages, setExistingImages] = useState([]);
@@ -87,11 +91,19 @@ function PostPropertyForm() {
     if (roleSetupUser.current === user.id) return;
     roleSetupUser.current = user.id;
     setRole("host")
-      .then(() => setHostReady(true))
+      .then(() => {
+        try {
+          window.localStorage.setItem("mehmaan-easy:view-mode", "host");
+        } catch (storageError) {
+          console.error("Unable to save the host workspace preference:", storageError);
+        }
+        toggleTheme();
+        setHostReady(true);
+      })
       .catch((roleError) => {
         setError(roleError.message || "Unable to set up host access.");
       });
-  }, [authLoading, profile, setRole, user]);
+  }, [authLoading, profile, setRole, toggleTheme, user]);
 
   useEffect(() => {
     if (!editId || !user) return;
@@ -116,8 +128,9 @@ function PostPropertyForm() {
           area: String(d.area || ""),
           capacity: String(d.capacity || 2),
           petFriendly: Boolean(d.petFriendly),
-          lat: String(d.location?.coordinates?.[1] || d.lat || ""),
-          lng: String(d.location?.coordinates?.[0] || d.lng || ""),
+          lat: String(d.location?.coordinates?.[1] ?? d.lat ?? ""),
+          lng: String(d.location?.coordinates?.[0] ?? d.lng ?? ""),
+          shareExactLocation: Boolean(d.shareExactLocation),
         }));
         setExistingImages(d.images || []);
       } catch (e) {
@@ -151,6 +164,17 @@ function PostPropertyForm() {
       () => setError("Location access was unavailable. You can continue without it."),
       { enableHighAccuracy: false, timeout: 10000 }
     );
+  }
+
+  function applyMapLink() {
+    const coordinates = parseMapCoordinates(mapLink);
+    if (!coordinates) {
+      setError("We couldn’t find coordinates in that link. Use a full Google Maps URL with a pin, or paste latitude, longitude.");
+      return;
+    }
+    update("lat", String(coordinates.lat));
+    update("lng", String(coordinates.lng));
+    setError("");
   }
 
   async function handleSubmit(e) {
@@ -332,13 +356,12 @@ function PostPropertyForm() {
                   ))}
                 </select>
               </Field>
-              <Field label="Collection">
-                <select value={form.stayTier} onChange={(e) => update("stayTier", e.target.value)} className="input">
-                  {STAY_TIERS.map((tier) => (
-                    <option key={tier}>{tier}</option>
-                  ))}
-                </select>
-              </Field>
+              <div className="rounded-xl border border-ink-line bg-ink-panel/60 p-3">
+                <p className="text-xs font-semibold text-cream/75">Stay collection</p>
+                <p className="mt-1 text-xs leading-5 text-cream/45">
+                  Mehmaan Easy assigns Easy, Royal, or Gold during the approval review.
+                </p>
+              </div>
             </div>
 
             <div className="grid grid-cols-2 gap-3">
@@ -448,21 +471,79 @@ function PostPropertyForm() {
                 />
               </Field>
             </div>
+            <Field label="Tourism license ID (optional · private)">
+              <input
+                value={form.tourismLicenseId || ""}
+                onChange={(event) => update("tourismLicenseId", event.target.value)}
+                maxLength={200}
+                className="input"
+              />
+              <span className="mt-1 block text-xs text-cream/45">
+                Only Mehmaan Easy admins can view this. You can leave it blank and share it later.
+              </span>
+            </Field>
 
-            <div className="flex items-center gap-3">
-              <button
-                type="button"
-                onClick={detectLocation}
-                className="text-xs px-4 py-2 rounded-full border border-ink-line text-cream/70 hover:border-gold hover:text-gold transition-colors"
-              >
-                Use my current location
-              </button>
-              {form.lat && form.lng && (
-                <span className="text-xs text-cream/40">
-                  Location saved privately; guests see only the city.
+            <section className="rounded-2xl border border-ink-line bg-ink-panel/70 p-4">
+              <div>
+                <h2 className="text-sm font-semibold text-cream">Place your stay on the map</h2>
+                <p className="mt-1 text-xs leading-5 text-cream/55">
+                  Use your current location, or paste a Google Maps pin link or
+                  latitude/longitude.
+                </p>
+              </div>
+              <div className="mt-4 flex flex-col gap-2 sm:flex-row">
+                <input
+                  value={mapLink}
+                  onChange={(event) => setMapLink(event.target.value)}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter") {
+                      event.preventDefault();
+                      applyMapLink();
+                    }
+                  }}
+                  aria-label="Google Maps link or coordinates"
+                  placeholder="Paste a Google Maps link or 15.2993, 74.1240"
+                  className="input"
+                />
+                <button
+                  type="button"
+                  onClick={applyMapLink}
+                  className="shrink-0 rounded-full border border-ink-line px-4 py-2 text-xs font-semibold text-cream/80 transition-colors hover:border-gold hover:text-gold"
+                >
+                  Use this pin
+                </button>
+              </div>
+              <div className="mt-3 flex flex-wrap items-center gap-3">
+                <button
+                  type="button"
+                  onClick={detectLocation}
+                  className="rounded-full bg-white/10 px-4 py-2 text-xs font-semibold text-cream/85 transition-colors hover:bg-white/15"
+                >
+                  Use my current location
+                </button>
+                {form.lat && form.lng && (
+                  <span className="text-xs text-cream/55">
+                    Pin set · {Number(form.lat).toFixed(5)}, {Number(form.lng).toFixed(5)}
+                  </span>
+                )}
+              </div>
+              <label className="mt-4 flex items-start gap-2.5 border-t border-white/10 pt-4 text-xs leading-5 text-cream/70">
+                <input
+                  type="checkbox"
+                  checked={form.shareExactLocation}
+                  disabled={!form.lat || !form.lng}
+                  onChange={(event) => update("shareExactLocation", event.target.checked)}
+                  className="mt-1 accent-gold"
+                />
+                <span>
+                  <span className="font-semibold text-cream">Show the exact pin on the public map</span>
+                  <span className="mt-0.5 block text-cream/50">
+                    This shares your precise map location with everyone. Leave this
+                    off to keep the address private and show guests the city area instead.
+                  </span>
                 </span>
-              )}
-            </div>
+              </label>
+            </section>
 
             <div className="flex flex-col gap-1.5 text-xs text-cream/60">
               <label htmlFor="property-images">Property photos</label>

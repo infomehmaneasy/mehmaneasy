@@ -1,12 +1,12 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 
 export function useGeolocation() {
   const [coords, setCoords] = useState(null);
   const [status, setStatus] = useState("idle"); // idle | locating | granted | denied | unsupported
 
-  useEffect(() => {
+  const requestLocation = useCallback(() => {
     if (!("geolocation" in navigator)) {
       setStatus("unsupported");
       return;
@@ -17,10 +17,13 @@ export function useGeolocation() {
         setCoords({ lat: pos.coords.latitude, lng: pos.coords.longitude });
         setStatus("granted");
       },
-      () => setStatus("denied"),
+      (error) => {
+        console.error("Unable to access the visitor's location:", error);
+        setStatus("denied");
+      },
       { enableHighAccuracy: false, timeout: 8000, maximumAge: 5 * 60 * 1000 }
     );
   }, []);
 
-  return { coords, status };
+  return { coords, status, requestLocation };
 }

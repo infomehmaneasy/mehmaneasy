@@ -16,7 +16,7 @@ export async function PATCH(req, { params }) {
       return NextResponse.json({ error: "Invalid property ID." }, { status: 400 });
     }
 
-    const { action, notes = "" } = await req.json();
+    const { action, notes = "", stayTier } = await req.json();
     if (!["approve", "reject"].includes(action)) {
       return NextResponse.json({ error: "Choose approve or reject." }, { status: 400 });
     }
@@ -26,10 +26,14 @@ export async function PATCH(req, { params }) {
     if (action === "reject" && !notes.trim()) {
       return NextResponse.json({ error: "Add an improvement note before rejecting a listing." }, { status: 400 });
     }
+    if (action === "approve" && !["Easy", "Royal", "Gold"].includes(stayTier)) {
+      return NextResponse.json({ error: "Choose Easy, Royal, or Gold before publishing this stay." }, { status: 400 });
+    }
 
     const { data: property, error } = await context.supabase
       .from("properties")
       .update({
+        ...(action === "approve" ? { category: stayTier, stayTier } : {}),
         verificationStatus: action === "approve" ? "approved" : "rejected",
         verificationNotes: notes.trim(),
         status: action === "approve" ? "active" : "rejected",

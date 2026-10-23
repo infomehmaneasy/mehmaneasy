@@ -188,10 +188,22 @@ export async function POST(req) {
       !Array.isArray(data.images) ||
       data.images.length < 3 ||
       data.images.length > 30 ||
-      data.images.some((image) => typeof image !== "string" || image.length > 2048)
+      data.images.some((image) => typeof image !== "string" || image.length > 2048) ||
+      (data.tourismLicenseId !== undefined &&
+        (typeof data.tourismLicenseId !== "string" || data.tourismLicenseId.length > 200))
     ) {
       return NextResponse.json(
         { error: "Complete the stay details, choose a collection and price period, and add at least three valid photos." },
+        { status: 400 }
+      );
+    }
+    if (
+      data.shareExactLocation &&
+      (data.latitude === null || data.latitude === undefined ||
+        data.longitude === null || data.longitude === undefined)
+    ) {
+      return NextResponse.json(
+        { error: "Add a property location before choosing to show its exact map pin." },
         { status: 400 }
       );
     }
@@ -206,6 +218,9 @@ export async function POST(req) {
     const publicData = {
       ...data,
       city: data.city.trim(),
+      shareExactLocation: data.shareExactLocation === true,
+      mapLatitude: data.shareExactLocation ? data.latitude : null,
+      mapLongitude: data.shareExactLocation ? data.longitude : null,
     };
     for (const field of ["status", "address", "pincode", "latitude", "longitude", "lat", "lng"]) {
       delete publicData[field];
@@ -215,7 +230,9 @@ export async function POST(req) {
       pincode: data.pincode.trim(),
       latitude: data.latitude ?? null,
       longitude: data.longitude ?? null,
+      tourismLicenseId: data.tourismLicenseId?.trim() || "",
     };
+    delete publicData.tourismLicenseId;
     delete publicData.lat;
     delete publicData.lng;
 
@@ -229,6 +246,8 @@ export async function POST(req) {
     if (
       error.message?.includes("latitude") ||
       error.message?.includes("longitude") ||
+      error.message?.includes("exact map location") ||
+      error.message?.includes("Tourism license ID") ||
       error.message === "Invalid listing status."
     ) {
       return NextResponse.json({ error: error.message }, { status: 400 });

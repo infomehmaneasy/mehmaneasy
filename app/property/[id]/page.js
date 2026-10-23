@@ -15,16 +15,15 @@ import {
   Users,
 } from "lucide-react";
 import Navbar from "@/components/Navbar";
-import EnquiryModal from "@/components/EnquiryModal";
 import { useAuth } from "@/context/AuthContext";
+import { openTawkChat } from "@/components/TawkChatWidget";
 
 export default function PropertyDetailPage() {
   const { id } = useParams();
-  const { user, profile, getAccessToken } = useAuth();
+  const { user, profile, getAccessToken, loading: authLoading } = useAuth();
   const [property, setProperty] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [showEnquiry, setShowEnquiry] = useState(false);
   const [activeImg, setActiveImg] = useState(0);
   const [checkIn, setCheckIn] = useState("");
   const [checkOut, setCheckOut] = useState("");
@@ -33,6 +32,11 @@ export default function PropertyDetailPage() {
   const [requestingBooking, setRequestingBooking] = useState(false);
   const [bookingError, setBookingError] = useState("");
   const [bookingResult, setBookingResult] = useState(null);
+  const [hasBookedProperty, setHasBookedProperty] = useState(false);
+  const [similarProperties, setSimilarProperties] = useState([]);
+  const [similarLoading, setSimilarLoading] = useState(true);
+  const [similarError, setSimilarError] = useState("");
+  const [chatError, setChatError] = useState("");
 
   useEffect(() => {
     if (profile?.phone) setGuestPhone(profile.phone);
@@ -63,6 +67,59 @@ export default function PropertyDetailPage() {
       active = false;
     };
   }, [id]);
+
+  useEffect(() => {
+    if (!property || authLoading) return;
+    let active = true;
+    async function loadSimilarProperties() {
+      setSimilarLoading(true);
+      setSimilarError("");
+      try {
+        const params = new URLSearchParams();
+        if (property.stayTier) params.set("stayTier", property.stayTier);
+        const response = await fetch(`/api/properties?${params.toString()}`);
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error || "Unable to load similar stays.");
+
+        let alreadyBooked = false;
+        if (user) {
+          const token = await getAccessToken();
+          const bookingsResponse = await fetch("/api/bookings", {
+            headers: { Authorization: `Bearer ${token}` },
+          });
+          const bookingsData = await bookingsResponse.json();
+          if (!bookingsResponse.ok) {
+            throw new Error(bookingsData.error || "Unable to check your booking history.");
+          }
+          alreadyBooked = (bookingsData.bookings || []).some((booking) =>
+            booking.guest_id === user.id &&
+            booking.property_id === (property.id || property._id) &&
+            ["requested", "confirmed", "completed"].includes(booking.status)
+          );
+        }
+
+        if (active) {
+          setHasBookedProperty(alreadyBooked);
+          setSimilarProperties(
+            (data.properties || [])
+              .filter((item) => (item.id || item._id) !== (property.id || property._id))
+              .sort((a, b) => Number(b.city?.toLowerCase() === property.city?.toLowerCase()) -
+                Number(a.city?.toLowerCase() === property.city?.toLowerCase()))
+              .slice(0, 4)
+          );
+        }
+      } catch (loadError) {
+        console.error("Unable to load similar stays or booking history:", loadError);
+        if (active) setSimilarError(loadError.message || "Unable to load similar stays.");
+      } finally {
+        if (active) setSimilarLoading(false);
+      }
+    }
+    loadSimilarProperties();
+    return () => {
+      active = false;
+    };
+  }, [authLoading, getAccessToken, property, user]);
 
   if (loading) {
     return (
@@ -107,13 +164,6 @@ export default function PropertyDetailPage() {
   const accommodationTotal = nights * nightlyRate;
   const estimatedTotal = accommodationTotal + cleaningFee;
   const canRequestBooking = priceBasis === "night";
-  const stayMessage = [
-    checkIn && checkOut
-      ? `I am interested in ${checkIn} to ${checkOut}`
-      : "I would like to ask about availability",
-    `${guests} ${guests === 1 ? "guest" : "guests"}`,
-  ].join(". ");
-
   async function submitBookingRequest(event) {
     event.preventDefault();
     setBookingError("");
@@ -149,6 +199,7 @@ export default function PropertyDetailPage() {
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || "Unable to request this stay.");
       setBookingResult(data.booking);
+      setHasBookedProperty(true);
     } catch (requestError) {
       setBookingError(requestError.message || "Unable to request this stay.");
     } finally {
@@ -183,7 +234,8 @@ export default function PropertyDetailPage() {
               </h1>
               <p className="mt-2 flex items-center gap-1.5 text-sm text-[#65716a]">
                 <MapPin size={15} className="text-[#bd604a]" />
-                Approximate location · {property.city}
+                {property.mapCoordinates ? "Exact map pin" : "Approximate location"} ·{" "}
+                {property.city}
               </p>
             </div>
             {property.rating && (
@@ -308,10 +360,14 @@ export default function PropertyDetailPage() {
                   <div>
                     <MapPin className="mx-auto text-[#bd604a]" size={23} />
                     <p className="mt-2 text-sm font-semibold text-[#34433b]">
-                      Approximate area · {property.city}
+                      {property.mapCoordinates
+                        ? `Exact map pin · ${property.city}`
+                        : `Approximate area · ${property.city}`}
                     </p>
                     <p className="mt-1 text-xs text-[#65716a]">
-                      Exact address and map details are shared after a confirmed booking.
+                      {property.mapCoordinates
+                        ? "The host has chosen to share this pin. The full address remains private until a confirmed booking."
+                        : "The host has kept the precise location private. The full address is shared after a confirmed booking."}
                     </p>
                   </div>
                 </div>
@@ -504,16 +560,18 @@ export default function PropertyDetailPage() {
               )}
               {!canRequestBooking && (
                 <p className="mt-4 text-xs leading-5 text-[#758078]">
-                  Booking requests require a nightly rate. Contact support for a quote for this listing.
+                  Booking requests require a nightly rate. Chat with our team for a quote for this listing.
                 </p>
               )}
+              {chatError && <p role="alert" className="mt-3 text-xs text-[#8d392c]">{chatError}</p>}
               <button
                 type="button"
-                disabled={!tripDatesValid}
-                onClick={() => setShowEnquiry(true)}
-                className="mt-3 w-full rounded-full border border-[#d8d9d2] px-5 py-3 text-sm font-semibold text-[#34433b] transition hover:bg-[#f7f5f1] disabled:cursor-not-allowed disabled:opacity-50"
+                onClick={() => {
+                  if (!openTawkChat()) setChatError("Live chat is still loading. Please try again in a moment.");
+                }}
+                className="mt-3 w-full rounded-full border border-[#d8d9d2] px-5 py-3 text-sm font-semibold text-[#34433b] transition hover:bg-[#f7f5f1]"
               >
-                Ask Mehmaan Easy support
+                Chat with Mehmaan Easy
               </button>
               <div className="mt-5 flex items-start gap-2 border-t border-[#eeeeea] pt-4 text-xs leading-5 text-[#65716a]">
                 <Heart size={15} className="mt-0.5 shrink-0 text-[#bd604a]" />
@@ -521,19 +579,37 @@ export default function PropertyDetailPage() {
               </div>
             </aside>
           </div>
+          {similarError && (
+            <p role="alert" className="mt-8 rounded-2xl bg-[#fff1ed] p-4 text-sm text-[#8d392c]">{similarError}</p>
+          )}
+          {!hasBookedProperty && !similarLoading && !similarError && similarProperties.length > 0 && (
+            <section className="mt-12">
+              <div className="flex items-end justify-between gap-4">
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[#bd604a]">Keep exploring</p>
+                  <h2 className="mt-2 text-2xl font-semibold">Similar stays</h2>
+                </div>
+                <Link href="/properties" className="text-sm font-semibold text-[#526058] hover:text-[#bd604a]">See all stays</Link>
+              </div>
+              <div className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                {similarProperties.map((item) => (
+                  <Link key={item.id || item._id} href={`/property/${item.id || item._id}`} className="overflow-hidden rounded-2xl border border-[#e8e7e1] bg-white transition hover:-translate-y-1 hover:shadow-lg">
+                    <img src={item.images?.[0] || "/logo.png"} alt={item.title} className="h-44 w-full object-cover" />
+                    <div className="p-4">
+                      <p className="text-[11px] font-semibold uppercase tracking-wide text-[#bd604a]">{item.stayTier || "Stay"}</p>
+                      <h3 className="mt-1 font-semibold text-[#29352f]">{item.title}</h3>
+                      <p className="mt-1 text-xs text-[#65716a]">{item.city} · {item.propertyType || "Stay"}</p>
+                      <p className="mt-3 text-sm font-semibold text-[#34433b]">
+                        ₹{Number(item.price).toLocaleString("en-IN")} <span className="font-normal text-[#65716a]">/ {item.priceBasis || "night"}</span>
+                      </p>
+                    </div>
+                  </Link>
+                ))}
+              </div>
+            </section>
+          )}
         </motion.div>
       </section>
-
-      {showEnquiry && (
-        <EnquiryModal
-          property={{
-            ...property,
-            id: property.id || property._id,
-          }}
-          initialMessage={stayMessage}
-          onClose={() => setShowEnquiry(false)}
-        />
-      )}
     </main>
   );
 }

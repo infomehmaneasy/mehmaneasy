@@ -2,9 +2,10 @@
 
 import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Search, SlidersHorizontal, Compass } from "lucide-react";
+import { Search, SlidersHorizontal, Compass, Map, LayoutGrid } from "lucide-react";
 import Navbar from "@/components/Navbar";
 import PropertyCard from "@/components/PropertyCard";
+import PropertyMap from "@/components/PropertyMap";
 
 export default function PropertiesListingPage() {
   const [properties, setProperties] = useState([]);
@@ -29,6 +30,7 @@ export default function PropertiesListingPage() {
   const [pool, setPool] = useState(false);
 
   const [expanded, setExpanded] = useState(false);
+  const [mobileView, setMobileView] = useState("map");
   const [sortBy, setSortBy] = useState("newest");
   const [tripDetails, setTripDetails] = useState(null);
 
@@ -184,8 +186,18 @@ export default function PropertiesListingPage() {
       <Navbar />
 
       {/* Header section */}
-      <section className="relative z-10 mx-auto max-w-[1440px] px-5 pb-16 pt-32 sm:px-8 lg:px-12">
-        <div className="mb-9 flex flex-col justify-between border-b border-[#e8e7e1] pb-8 md:flex-row md:items-end">
+      <section
+        className={`relative z-10 mx-auto max-w-[1440px] px-3 sm:px-8 lg:px-12 ${
+          mobileView === "map"
+            ? "pb-8 pt-24 sm:pb-16 sm:pt-32"
+            : "pb-8 pt-24 sm:pb-16 sm:pt-32"
+        }`}
+      >
+        <div
+          className={`mb-9 flex flex-col justify-between border-b border-[#e8e7e1] pb-8 md:flex-row md:items-end ${
+            mobileView === "map" ? "hidden lg:flex" : ""
+          }`}
+        >
           <div>
             <p className="mb-2 text-xs font-semibold uppercase tracking-[0.16em] text-[#bd604a]">The collection</p>
             <h1 className="text-4xl font-semibold leading-[1.02] tracking-[-0.04em] text-[#26322c] md:text-6xl">
@@ -199,7 +211,11 @@ export default function PropertiesListingPage() {
         </div>
 
         {/* Sticky-ready premium search and filter bar container */}
-        <div className="sticky top-20 z-40 mb-10 rounded-3xl border border-[#e8e7e1] bg-white/95 p-4 shadow-[0_12px_35px_rgba(32,45,37,0.1)] backdrop-blur-xl">
+        <div
+          className={`sticky top-20 z-40 mb-10 rounded-3xl border border-[#e8e7e1] bg-white/95 p-4 shadow-[0_12px_35px_rgba(32,45,37,0.1)] backdrop-blur-xl ${
+            mobileView === "map" ? "hidden lg:block" : ""
+          }`}
+        >
           <div className="flex flex-col lg:flex-row gap-4 items-center">
             {/* Search Input */}
             <div className="w-full flex items-center gap-2.5 rounded-2xl border border-[#e8e7e1] bg-[#fffdf9] px-4 py-3 lg:flex-1">
@@ -375,56 +391,117 @@ export default function PropertiesListingPage() {
           </p>
         )}
 
-        {/* Properties Grid Display */}
-        {loading ? (
-          <div className="grid grid-cols-1 gap-8 sm:grid-cols-2 lg:grid-cols-3">
-            {Array.from({ length: 6 }).map((_, i) => (
-              <div key={i} className="h-96 rounded-3xl bg-white/5 animate-pulse" />
-            ))}
+        <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
+          <div>
+            {mobileView === "map" && (
+              <h1 className="mb-1 text-lg font-semibold tracking-tight text-[#26322c] lg:hidden">
+                Explore stays
+              </h1>
+            )}
+            <p className="text-sm text-[#65716a]">
+              {filteredProperties.length}{" "}
+              {filteredProperties.length === 1 ? "stay" : "stays"} to explore
+            </p>
           </div>
-        ) : loadError ? (
           <div
-            role="alert"
-            className="rounded-3xl border border-[#e5c6bb] bg-white px-6 py-14 text-center"
+            role="tablist"
+            aria-label="Choose map or stay list"
+            className="inline-flex rounded-full border border-[#d8d9d2] bg-white p-1 lg:hidden"
           >
-            <Compass size={40} className="mx-auto mb-4 text-[#bd604a]" />
-            <p className="font-display text-xl italic text-[#26322c]">
-              We hit a little travel snag
-            </p>
-            <p className="mx-auto mt-2 max-w-sm text-sm leading-relaxed text-[#65716a]">
-              {loadError}
-            </p>
             <button
               type="button"
-              onClick={() => setReloadKey((key) => key + 1)}
-              className="mt-5 rounded-full bg-[#20372f] px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-[#2d4a40]"
+              role="tab"
+              aria-selected={mobileView === "map"}
+              onClick={() => {
+                setMobileView("map");
+                window.scrollTo({ top: 0, behavior: "smooth" });
+              }}
+              className={`inline-flex items-center gap-1.5 rounded-full px-3 py-2 text-xs font-semibold transition ${
+                mobileView === "map"
+                  ? "bg-[#20372f] text-white shadow-sm"
+                  : "text-[#65716a] hover:text-[#26322c]"
+              }`}
             >
-              Try again
+              <Map size={14} /> Map
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={mobileView === "stays"}
+              onClick={() => setMobileView("stays")}
+              className={`inline-flex items-center gap-1.5 rounded-full px-3 py-2 text-xs font-semibold transition ${
+                mobileView === "stays"
+                  ? "bg-[#20372f] text-white shadow-sm"
+                  : "text-[#65716a] hover:text-[#26322c]"
+              }`}
+            >
+              <LayoutGrid size={14} /> Stays
             </button>
           </div>
-        ) : filteredProperties.length === 0 ? (
-          <div className="py-24 text-center text-[#65716a]">
-            <Compass size={40} className="mx-auto mb-4 text-[#bd604a]" />
-            <p className="font-display text-xl italic text-[#26322c]">No stays found</p>
-            <p className="mx-auto mt-2 max-w-sm text-sm leading-relaxed">
-              We couldn’t find any matches. Try another destination or broaden your filters.
+        </div>
+
+        {/* Properties Grid Display */}
+        <div className="grid gap-8 lg:grid-cols-[minmax(0,1.05fr)_minmax(340px,0.95fr)]">
+          <div className={`${mobileView === "stays" ? "block" : "hidden"} lg:block`}>
+            {loading ? (
+              <div className="grid grid-cols-1 gap-8 sm:grid-cols-2">
+                {Array.from({ length: 6 }).map((_, i) => (
+                  <div key={i} className="h-96 animate-pulse rounded-3xl bg-white/5" />
+                ))}
+              </div>
+            ) : loadError ? (
+              <div
+                role="alert"
+                className="rounded-3xl border border-[#e5c6bb] bg-white px-6 py-14 text-center"
+              >
+                <Compass size={40} className="mx-auto mb-4 text-[#bd604a]" />
+                <p className="font-display text-xl italic text-[#26322c]">
+                  We hit a little travel snag
+                </p>
+                <p className="mx-auto mt-2 max-w-sm text-sm leading-relaxed text-[#65716a]">
+                  {loadError}
+                </p>
+                <button
+                  type="button"
+                  onClick={() => setReloadKey((key) => key + 1)}
+                  className="mt-5 rounded-full bg-[#20372f] px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-[#2d4a40]"
+                >
+                  Try again
+                </button>
+              </div>
+            ) : filteredProperties.length === 0 ? (
+              <div className="py-24 text-center text-[#65716a]">
+                <Compass size={40} className="mx-auto mb-4 text-[#bd604a]" />
+                <p className="font-display text-xl italic text-[#26322c]">No stays found</p>
+                <p className="mx-auto mt-2 max-w-sm text-sm leading-relaxed">
+                  We couldn’t find any matches. Try another destination or broaden your filters.
+                </p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 gap-8 sm:grid-cols-2">
+                {filteredProperties.map((p, idx) => (
+                  <motion.div
+                    key={p.id || idx}
+                    initial={{ opacity: 0, y: 15 }}
+                    whileInView={{ opacity: 1, y: 0 }}
+                    viewport={{ once: true }}
+                    transition={{ duration: 0.5, delay: (idx % 3) * 0.05 }}
+                  >
+                    <PropertyCard property={p} index={idx} />
+                  </motion.div>
+                ))}
+              </div>
+            )}
+          </div>
+          <div
+            className={`${mobileView === "map" ? "block" : "hidden"} order-first lg:sticky lg:top-28 lg:order-none lg:block lg:self-start`}
+          >
+            <PropertyMap properties={filteredProperties} destination={keyword} />
+            <p className="mt-2 px-1 text-[11px] leading-5 text-[#758078]">
+              Exact pins are shown only when a host chooses to share them; all other stays are marked by city area.
             </p>
           </div>
-        ) : (
-          <div className="grid grid-cols-1 gap-8 sm:grid-cols-2 lg:grid-cols-3">
-            {filteredProperties.map((p, idx) => (
-              <motion.div
-                key={p.id || idx}
-                initial={{ opacity: 0, y: 15 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ duration: 0.5, delay: (idx % 3) * 0.05 }}
-              >
-                <PropertyCard property={p} index={idx} />
-              </motion.div>
-            ))}
-          </div>
-        )}
+        </div>
       </section>
     </main>
   );

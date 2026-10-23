@@ -1,7 +1,9 @@
 import { Cormorant_Garamond, Inter, Syne } from "next/font/google";
 import "./globals.css";
 import { AuthProvider } from "@/context/AuthContext";
+import { ThemeProvider } from "@/context/ThemeContext";
 import AppShell from "@/components/AppShell";
+import TawkChatWidget from "@/components/TawkChatWidget";
 
 const cormorant = Cormorant_Garamond({ subsets: ["latin"], variable: "--font-serif", weight: ["400", "500", "600", "700"], style: ["normal", "italic"] });
 const inter = Inter({ subsets: ["latin"], variable: "--font-inter", weight: ["400", "500", "600"] });
@@ -20,9 +22,12 @@ export default function RootLayout({ children }) {
     <html lang="en">
       <body className={`${cormorant.variable} ${inter.variable} ${syne.variable} font-body bg-ink text-cream antialiased`}>
 
-        <AuthProvider>
-          <AppShell>{children}</AppShell>
-        </AuthProvider>
+        <ThemeProvider>
+          <AuthProvider>
+            <AppShell>{children}</AppShell>
+            <TawkChatWidget />
+          </AuthProvider>
+        </ThemeProvider>
       </body>
     </html>
   );

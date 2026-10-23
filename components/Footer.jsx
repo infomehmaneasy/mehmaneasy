@@ -21,13 +21,25 @@ export default function Footer() {
 
         <nav className="flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-sm text-[#65716a]">
           <Link href="/" className="transition-colors hover:text-[#bd604a]">
-            Discover
+            All
           </Link>
           <Link
             href="/properties"
             className="transition-colors hover:text-[#bd604a]"
           >
-            Find a stay
+            Stays
+          </Link>
+          <Link
+            href="/experiences"
+            className="transition-colors hover:text-[#bd604a]"
+          >
+            Experiences
+          </Link>
+          <Link
+            href="/decor-studio"
+            className="transition-colors hover:text-[#bd604a]"
+          >
+            Décor Studio
           </Link>
           <Link href="/about" className="transition-colors hover:text-[#bd604a]">
             Our story

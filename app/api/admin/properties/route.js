@@ -29,11 +29,17 @@ export async function GET(req) {
     if (privateError) throw privateError;
     const privateById = new Map((privateData || []).map((item) => [item.propertyId, item]));
     return NextResponse.json({
-      properties: (properties || []).map((property) => ({
-        ...property,
-        ...privateById.get(property.id),
-        _id: property.id,
-      })),
+      properties: (properties || []).map((property) => {
+        const privateProperty = privateById.get(property.id);
+        return {
+          ...property,
+          ...privateProperty,
+          _id: property.id,
+          location: privateProperty?.latitude != null && privateProperty?.longitude != null
+            ? { type: "Point", coordinates: [privateProperty.longitude, privateProperty.latitude] }
+            : null,
+        };
+      }),
     });
   } catch (error) {
     console.error("Error loading Supabase verification queue:", error);

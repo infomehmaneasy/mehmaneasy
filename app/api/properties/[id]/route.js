@@ -85,12 +85,50 @@ export async function PUT(req, { params }) {
     delete propertyUpdates.pincode;
     delete propertyUpdates.latitude;
     delete propertyUpdates.longitude;
+    delete propertyUpdates.tourismLicenseId;
+
+    const { data: currentProperty, error: propertyError } = await supabase
+      .from("properties")
+      .select("shareExactLocation")
+      .eq("id", params.id)
+      .maybeSingle();
+    if (propertyError) throw propertyError;
+    if (!currentProperty) {
+      return NextResponse.json({ error: "Property not found." }, { status: 404 });
+    }
 
     const privateUpdates = {};
-    for (const field of ["address", "pincode", "latitude", "longitude"]) {
+    for (const field of ["address", "pincode", "latitude", "longitude", "tourismLicenseId"]) {
       if (Object.hasOwn(updates, field)) privateUpdates[field] = updates[field];
     }
-    if (Object.keys(privateUpdates).length) {
+    const shareExactLocation = Object.hasOwn(updates, "shareExactLocation")
+      ? updates.shareExactLocation
+      : currentProperty.shareExactLocation;
+    const latitude = Object.hasOwn(privateUpdates, "latitude")
+      ? privateUpdates.latitude
+      : privateData.latitude;
+    const longitude = Object.hasOwn(privateUpdates, "longitude")
+      ? privateUpdates.longitude
+      : privateData.longitude;
+    if (shareExactLocation && (latitude == null || longitude == null)) {
+      return NextResponse.json(
+        { error: "Add a property location before choosing to show its exact map pin." },
+        { status: 400 }
+      );
+    }
+    const mapLocationChanged =
+      Object.hasOwn(updates, "shareExactLocation") ||
+      Object.hasOwn(privateUpdates, "latitude") ||
+      Object.hasOwn(privateUpdates, "longitude");
+    if (mapLocationChanged) {
+      propertyUpdates.shareExactLocation = shareExactLocation;
+      propertyUpdates.mapLatitude = shareExactLocation ? latitude : null;
+      propertyUpdates.mapLongitude = shareExactLocation ? longitude : null;
+    }
+
+    const privateListingChanged = ["address", "pincode", "latitude", "longitude"]
+      .some((field) => Object.hasOwn(privateUpdates, field));
+    if (privateListingChanged) {
       propertyUpdates.status = "pending_review";
     }
 
@@ -133,7 +171,13 @@ export async function PUT(req, { params }) {
       property: withPrivateData(updatedProperty, updatedPrivateData),
     });
   } catch (error) {
-    if (error.message?.includes("latitude") || error.message?.includes("longitude") || error.message === "Invalid listing status.") {
+    if (
+      error.message?.includes("latitude") ||
+      error.message?.includes("longitude") ||
+      error.message?.includes("exact map location") ||
+      error.message?.includes("Tourism license ID") ||
+      error.message === "Invalid listing status."
+    ) {
       return NextResponse.json({ error: error.message }, { status: 400 });
     }
     console.error("Error updating Supabase property:", error);

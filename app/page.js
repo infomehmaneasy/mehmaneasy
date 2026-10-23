@@ -56,6 +56,24 @@ const tripIdeas = [
   { label: "Room for everyone", image: "photo-1600210492486-724fe5c67fb0" },
 ];
 
+const storyNotes = [
+  {
+    title: "The slow morning",
+    quote: "The long breakfast. The balcony breeze. The feeling of nowhere else to be.",
+    mark: "01",
+  },
+  {
+    title: "A place of your own",
+    quote: "A thoughtful space to come back to after a day spent somewhere new.",
+    mark: "02",
+  },
+  {
+    title: "One more night",
+    quote: "Little details that make a weekend away feel like time well spent.",
+    mark: "03",
+  },
+];
+
 function Reveal({ children, className = "", delay = 0 }) {
   return (
     <motion.div
@@ -366,6 +384,65 @@ export default function HomePage() {
         </div>
       </section>
 
+      <section
+        aria-label="Guest story previews"
+        className="relative overflow-hidden bg-[#17231e] py-16 text-white sm:py-20"
+      >
+        <div className="absolute -left-28 top-8 h-72 w-72 rounded-full border border-white/[0.07]" />
+        <div className="absolute -left-12 top-24 h-40 w-40 rounded-full border border-white/[0.08]" />
+        <div className="relative mx-auto max-w-[1440px] px-5 sm:px-8 lg:px-12">
+          <Reveal className="mb-8 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+            <div>
+              <p className="mb-2 text-[10px] font-bold uppercase tracking-[0.2em] text-[#f0b39d]">
+                Guest story previews
+              </p>
+              <h2 className="max-w-xl text-3xl font-semibold leading-tight tracking-[-0.04em] sm:text-5xl">
+                The moments that make
+                <br className="hidden sm:block" /> a stay feel like yours.
+              </h2>
+            </div>
+            <p className="max-w-sm text-xs leading-5 text-white/55">
+              A little inspiration while the first verified guest stories are
+              gathered. These are brand notes, not customer reviews.
+            </p>
+          </Reveal>
+        </div>
+
+        {[false, true].map((reverse) => (
+          <div
+            key={reverse ? "second-rail" : "first-rail"}
+            className={`story-marquee ${reverse ? "story-marquee--reverse" : ""} ${
+              reverse ? "mt-3" : ""
+            }`}
+            aria-hidden={reverse}
+          >
+            <div className="story-marquee__track">
+              {[...storyNotes, ...storyNotes].map((note, index) => (
+                <article
+                  key={`${reverse ? "reverse" : "forward"}-${note.mark}-${index}`}
+                  className={`story-note story-note--${note.mark}`}
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] font-bold uppercase tracking-[0.17em] text-white/50">
+                      A Mehmaan moment
+                    </span>
+                    <span className="font-serif text-2xl italic text-[#f0b39d]">
+                      {note.mark}
+                    </span>
+                  </div>
+                  <p className="mt-6 font-serif text-xl italic leading-snug text-white sm:text-2xl">
+                    “{note.quote}”
+                  </p>
+                  <h3 className="mt-5 text-xs font-semibold uppercase tracking-[0.12em] text-white/75">
+                    {note.title}
+                  </h3>
+                </article>
+              ))}
+            </div>
+          </div>
+        ))}
+      </section>
+
       <section className="bg-[#f5f2eb] py-20 lg:py-24">
         <div className="mx-auto max-w-[1440px] px-5 sm:px-8 lg:px-12">
           <Reveal className="mb-9 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
@@ -531,6 +608,41 @@ export default function HomePage() {
             />
           ))}
         </div>
+      </section>
+
+      <section className="px-5 pb-20 sm:px-8 lg:px-12 lg:pb-24">
+        <Reveal className="mx-auto grid max-w-[1440px] overflow-hidden rounded-[30px] bg-[#17231e] text-white lg:grid-cols-[1fr_1fr]">
+          <div className="relative min-h-[320px] overflow-hidden sm:min-h-[420px]">
+            <img
+              src="https://images.unsplash.com/photo-1616486338812-3dadae4b4ace?auto=format&fit=crop&w=1200&q=85"
+              alt="Warmly styled living room with layered natural textures"
+              loading="lazy"
+              className="absolute inset-0 h-full w-full object-cover transition-transform duration-700 hover:scale-[1.03]"
+            />
+            <div className="absolute inset-0 bg-gradient-to-r from-black/10 to-[#17231e]/35" />
+            <span className="absolute bottom-5 left-5 rounded-full border border-white/30 bg-black/20 px-4 py-2 text-xs text-white backdrop-blur-md">
+              The Mehmaan moodboard · 01
+            </span>
+          </div>
+          <div className="flex flex-col justify-center p-7 sm:p-10 lg:p-14">
+            <p className="mb-3 inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.17em] text-[#f6d5c3]">
+              <Sparkles size={14} /> New · Décor Studio
+            </p>
+            <h2 className="max-w-lg text-3xl font-semibold leading-tight tracking-[-0.035em] sm:text-4xl">
+              A stay should feel good before you even arrive.
+            </h2>
+            <p className="mt-4 max-w-lg text-sm leading-6 text-white/70">
+              Explore thoughtfully styled spaces, discover a mood that feels
+              like you, and find a stay with its own point of view.
+            </p>
+            <Link
+              href="/decor-studio"
+              className="mt-7 inline-flex w-fit items-center gap-2 rounded-full bg-white px-5 py-3 text-sm font-semibold text-[#20372f] transition hover:bg-[#f6d5c3]"
+            >
+              Step into the studio <ArrowRight size={16} />
+            </Link>
+          </div>
+        </Reveal>
       </section>
 
       <section className="relative overflow-hidden bg-[#20372f] py-20 text-white lg:py-24">

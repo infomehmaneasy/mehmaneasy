@@ -147,7 +147,6 @@ export default function BookingPanel({ direction, title, emptyTitle, emptyDetail
         <div className="mt-5 grid gap-4">
           {currentBookings.map((booking) => {
             const property = booking.property;
-            const isParticipant = direction !== "admin";
             const canCancel = booking.status === "requested" ||
               (booking.status === "confirmed" && booking.check_in > today);
             const canComplete = booking.status === "confirmed" && booking.check_out <= today;
@@ -199,27 +198,34 @@ export default function BookingPanel({ direction, title, emptyTitle, emptyDetail
                         {otherPerson?.email && <p><strong>Email:</strong> <a className="underline" href={`mailto:${otherPerson.email}`}>{otherPerson.email}</a></p>}
                       </div>
                     ) : null}
-                    {(direction === "host" || direction === "admin") && booking.status === "requested" && (
+                    {direction === "host" && booking.status === "requested" && (
                       <div className="mt-4 flex flex-wrap gap-2">
                         <button type="button" disabled={busyId === booking.id} onClick={() => setConfirmBooking(booking)} className="rounded-full bg-[#20372f] px-4 py-2 text-xs font-semibold text-white disabled:opacity-50">Review & confirm stay</button>
                         <button type="button" disabled={busyId === booking.id} onClick={() => updateBooking(booking, "decline")} className="rounded-full border border-[#e5c6bb] px-4 py-2 text-xs font-semibold text-[#8d392c] disabled:opacity-50">Decline request</button>
                       </div>
                     )}
-                    {(direction === "host" || direction === "admin") && canComplete && (
+                    {direction === "host" && canComplete && (
                       <button type="button" disabled={busyId === booking.id} onClick={() => updateBooking(booking, "complete")} className="mt-4 rounded-full border border-[#d8d9d2] px-4 py-2 text-xs font-semibold text-[#526058] disabled:opacity-50">Mark stay completed</button>
                     )}
-                    {(direction === "guest" || direction === "admin") && canCancel && (
+                    {direction === "guest" && canCancel && (
                       <button type="button" disabled={busyId === booking.id} onClick={() => updateBooking(booking, "cancel")} className="mt-4 rounded-full border border-[#e5c6bb] px-4 py-2 text-xs font-semibold text-[#8d392c] disabled:opacity-50">Cancel request</button>
                     )}
-                    {direction === "admin" && booking.status === "confirmed" && (
-                      <button type="button" disabled={busyId === booking.id} onClick={() => updateBooking(booking, "cancel")} className="ml-2 mt-4 rounded-full border border-[#e5c6bb] px-4 py-2 text-xs font-semibold text-[#8d392c] disabled:opacity-50">Cancel booking</button>
-                    )}
-                    {!isParticipant && direction === "admin" && booking.guest && (
-                      <p className="mt-3 text-[11px] text-[#758078]">
-                        {booking.guest.name} ·{" "}
-                        <a className="underline" href={`mailto:${booking.guest.email}`}>{booking.guest.email}</a>{" "}
-                        · <a className="underline" href={`tel:${booking.guest.phone}`}>{booking.guest.phone}</a>
-                      </p>
+                    {direction === "admin" && (
+                      <div className="mt-4 grid gap-2 rounded-xl bg-[#f7f5f1] p-3 text-xs leading-5 text-[#526058] sm:grid-cols-2">
+                        <p><strong>Booking reference:</strong> {booking.id}</p>
+                        <p><strong>Request received:</strong> {booking.created_at ? new Date(booking.created_at).toLocaleString("en-IN") : "—"}</p>
+                        <p><strong>Guest:</strong> {booking.guest?.name || "—"} · {booking.guest?.email || "—"} · {booking.guest?.phone || "—"}</p>
+                        <p><strong>Host:</strong> {booking.host?.name || "—"} · {booking.host?.email || "—"} · {booking.host?.phone || "—"}</p>
+                        <p><strong>Listing ID:</strong> {booking.property_id}</p>
+                        {booking.property?.address && <p><strong>Property address:</strong> {booking.property.address}{booking.property.pincode ? `, ${booking.property.pincode}` : ""}</p>}
+                        {booking.property?.tourismLicenseId && <p><strong>Tourism license ID:</strong> {booking.property.tourismLicenseId}</p>}
+                        <p><strong>Payment:</strong> {booking.payment_status || "not collected"} · {booking.currency || "INR"}</p>
+                        <p><strong>Listing:</strong> {booking.property?.propertyType || "Stay"} · {booking.property?.stayTier || booking.property?.category || "Unassigned"} · Capacity {booking.property?.capacity || "—"}</p>
+                        {booking.property?.description && <p className="sm:col-span-2"><strong>Property description:</strong> {booking.property.description}</p>}
+                        {booking.property?.amenities?.length > 0 && <p className="sm:col-span-2"><strong>Amenities:</strong> {booking.property.amenities.join(", ")}</p>}
+                        {booking.guest_note && <p><strong>Guest note:</strong> {booking.guest_note}</p>}
+                        {booking.host_note && <p><strong>Host note:</strong> {booking.host_note}</p>}
+                      </div>
                     )}
                   </div>
                 </div>
