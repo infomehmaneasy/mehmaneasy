@@ -5,6 +5,7 @@ import { BadgeCheck, Clock3, ShieldAlert, Trash2 } from "lucide-react";
 import Navbar from "@/components/Navbar";
 import BookingPanel from "@/components/BookingPanel";
 import AdminExperienceManager from "@/components/AdminExperienceManager";
+import AdminSiteMediaManager from "@/components/AdminSiteMediaManager";
 import { useAuth } from "@/context/AuthContext";
 
 export default function AdminPage() {
@@ -187,19 +188,20 @@ export default function AdminPage() {
           questions through the support queue.
         </p>
 
-        <div className="mt-8 flex gap-2 border-b border-[#e8e7e1]">
+        <div className="mt-8 flex gap-2 overflow-x-auto border-b border-[#e8e7e1]">
           {[
             ["properties", `Property reviews (${properties.length})`],
             ["manage", `Marketplace listings (${marketplaceListings.length})`],
             ["enquiries", `Guest questions (${enquiries.length})`],
             ["bookings", "Bookings"],
             ["experiences", "Experiences"],
+            ["site-media", "Home page images"],
           ].map(([tab, label]) => (
             <button
               key={tab}
               type="button"
               onClick={() => selectTab(tab)}
-              className={`border-b-2 px-4 py-3 text-sm font-semibold ${
+              className={`shrink-0 whitespace-nowrap border-b-2 px-4 py-3 text-sm font-semibold ${
                 activeTab === tab
                   ? "border-[#bd604a] text-[#bd604a]"
                   : "border-transparent text-[#65716a]"
@@ -246,6 +248,8 @@ export default function AdminPage() {
           <EmptyState title="No guest questions" detail="New pre-booking questions appear here." />
         ) : activeTab === "experiences" ? (
           <AdminExperienceManager />
+        ) : activeTab === "site-media" ? (
+          <AdminSiteMediaManager />
         ) : activeTab === "bookings" ? (
           <BookingPanel
             direction="admin"
@@ -321,7 +325,7 @@ export default function AdminPage() {
                         onChange={(event) => setTiers((current) => ({ ...current, [property._id]: event.target.value }))}
                         className="mt-2 w-full rounded-xl border border-[#e0e1dc] bg-white p-3 text-sm font-normal text-[#29352f] outline-none focus:border-[#bd604a]"
                       >
-                        {["Easy", "Royal", "Gold"].map((tier) => <option key={tier} value={tier}>{tier}</option>)}
+                        {["Classic", "Easy", "Royal"].map((tier) => <option key={tier} value={tier}>{tier}</option>)}
                       </select>
                     </label>
                     <label className="mt-5 block text-xs font-semibold text-[#526058]">

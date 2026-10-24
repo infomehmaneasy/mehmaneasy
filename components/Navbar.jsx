@@ -2,7 +2,6 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { AnimatePresence, motion } from "framer-motion";
 import {
   CalendarDays,
   MapPin,
@@ -32,7 +31,6 @@ export default function Navbar() {
   const [modeError, setModeError] = useState("");
   const pathname = usePathname();
   const router = useRouter();
-  const isHome = pathname === "/";
 
   useEffect(() => {
     function updateScrollState() {
@@ -95,7 +93,7 @@ export default function Navbar() {
     setMobileSearchOpen(false);
   }
 
-  const isLight = (!isHome || scrolled) && theme !== "dark";
+  const isLight = theme !== "dark";
   const links = [
     { href: "/", label: "All" },
     { href: "/properties", label: "Stays" },
@@ -105,17 +103,12 @@ export default function Navbar() {
   ];
 
   return (
-    <header className="fixed left-0 right-0 top-0 z-50 px-3 pt-3 sm:px-6 sm:pt-4">
-      <motion.div
-        animate={{
-          y: scrolled ? 0 : 0,
-          scale: scrolled ? 0.985 : 1,
-        }}
-        transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
-        className={`mx-auto flex h-[68px] max-w-[1440px] items-center justify-between rounded-full px-4 transition-all duration-300 sm:h-[76px] sm:px-7 ${
+    <header className="fixed left-0 right-0 top-0 z-50">
+      <div
+        className={`mx-auto flex ${scrolled ? "h-16" : "h-[76px]"} max-w-none items-center justify-between border-x-0 border-t-0 px-4 transition-[height] duration-300 ease-out sm:px-7 ${
           isLight
             ? "border border-[#e8e8e3] bg-white/95 text-[#27332d] shadow-[0_8px_30px_rgba(26,38,31,0.11)] backdrop-blur-xl"
-            : "border border-white/20 bg-[#15251f]/25 text-white backdrop-blur-lg"
+            : "border-b border-white/20 bg-[#15251f]/90 text-white backdrop-blur-lg"
         }`}
       >
         <Link
@@ -126,21 +119,15 @@ export default function Navbar() {
           <img
             src="/logo.png"
             alt=""
-            className="h-9 w-9 rounded-xl object-contain"
+            className={`${scrolled ? "h-8 w-8" : "h-9 w-9"} rounded-xl object-contain transition-[height,width] duration-300 ease-out`}
           />
           <span className="hidden text-[17px] font-semibold tracking-[-0.04em] sm:inline">
             mehmaan<span className="text-[#bd604a]">easy</span>
           </span>
         </Link>
 
-        <AnimatePresence mode="wait">
-          {!scrolled && (
-            <motion.nav
-              key="main-navigation"
-              initial={{ opacity: 0, y: -5 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -5 }}
-              transition={{ duration: 0.16 }}
+        {!scrolled && (
+            <nav
               className="hidden items-center gap-7 md:flex"
             >
               {links.map((link) => (
@@ -160,77 +147,28 @@ export default function Navbar() {
                   {link.label}
                 </Link>
               ))}
-            </motion.nav>
-          )}
-        </AnimatePresence>
+            </nav>
+        )}
 
-        <AnimatePresence mode="wait">
-          {scrolled && (
-            <motion.form
-              key="compact-search"
-              onSubmit={submitSearch}
-              initial={{ opacity: 0, y: -8, scale: 0.97 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, y: -8, scale: 0.97 }}
-              transition={{ duration: 0.2 }}
-              className="absolute left-1/2 hidden h-14 w-[min(610px,52vw)] -translate-x-1/2 items-center rounded-full border border-[#e7e7e2] bg-white px-2 text-[#27332d] shadow-[0_3px_14px_rgba(0,0,0,0.08)] xl:flex"
+        {scrolled && (
+            <button
+              type="button"
+              onClick={() => setMobileSearchOpen(true)}
+              aria-label="Open stay search"
+              className="absolute left-1/2 hidden h-11 -translate-x-1/2 items-center gap-3 rounded-full border border-[#e7e7e2] bg-white px-4 text-xs text-[#27332d] shadow-[0_3px_14px_rgba(0,0,0,0.08)] xl:flex"
             >
-              <label className="min-w-0 flex-[1.2] px-3">
-                <span className="block text-[10px] font-semibold text-[#27332d]">Where to?</span>
-                <input
-                  value={destination}
-                  onChange={(event) => setDestination(event.target.value)}
-                  placeholder="Search destinations"
-                  aria-label="Search destination"
-                  className="w-full bg-transparent text-[11px] text-[#526058] outline-none placeholder:text-[#87918a]"
-                />
-              </label>
-              <label className="min-w-0 flex-1 border-l border-[#e8e7e1] px-3">
-                <span className="block text-[10px] font-semibold text-[#27332d]">Check in</span>
-                <input
-                  type="date"
-                  value={checkIn}
-                  onChange={(event) => setCheckIn(event.target.value)}
-                  aria-label="Check-in date"
-                  className="w-full bg-transparent text-[10px] text-[#526058] outline-none [color-scheme:light]"
-                />
-              </label>
-              <label className="min-w-0 flex-1 border-l border-[#e8e7e1] px-3">
-                <span className="block text-[10px] font-semibold text-[#27332d]">Check out</span>
-                <input
-                  type="date"
-                  min={checkIn || undefined}
-                  value={checkOut}
-                  onChange={(event) => setCheckOut(event.target.value)}
-                  aria-label="Check-out date"
-                  className="w-full bg-transparent text-[10px] text-[#526058] outline-none [color-scheme:light]"
-                />
-              </label>
-              <label className="min-w-0 flex-1 border-l border-[#e8e7e1] px-3">
-                <span className="block text-[10px] font-semibold text-[#27332d]">Guests</span>
-                <select
-                  value={guestCount}
-                  onChange={(event) => setGuestCount(event.target.value)}
-                  aria-label="Number of guests"
-                  className="w-full bg-transparent text-[11px] text-[#526058] outline-none"
-                >
-                  {[1, 2, 3, 4, 5, 6, 7, 8].map((count) => (
-                    <option key={count} value={count}>
-                      {count} {count === 1 ? "guest" : "guests"}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <button
-                type="submit"
-                aria-label="Search stays"
-                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#bd604a] text-white transition hover:bg-[#a94d39]"
-              >
-                <Search size={16} />
-              </button>
-            </motion.form>
-          )}
-        </AnimatePresence>
+              <span className="max-w-[18vw] truncate">{destination.trim() || "Anywhere"}</span>
+              <span className="hidden h-5 border-l border-[#e8e7e1] sm:block" />
+              <span className="hidden sm:inline">
+                {checkIn && checkOut ? `${checkIn} – ${checkOut}` : "Any dates"}
+              </span>
+              <span className="hidden h-5 border-l border-[#e8e7e1] sm:block" />
+              <span className="hidden sm:inline">{guestCount} guests</span>
+              <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#bd604a] text-white">
+                <Search size={15} />
+              </span>
+            </button>
+        )}
 
         <div className="hidden items-center gap-3 md:flex">
           {!scrolled && (
@@ -307,13 +245,8 @@ export default function Navbar() {
                 <UserRound size={17} />
               </span>
             </button>
-            <AnimatePresence>
-              {open && (
-                <motion.div
-                  initial={{ opacity: 0, y: 8, scale: 0.98 }}
-                  animate={{ opacity: 1, y: 0, scale: 1 }}
-                  exit={{ opacity: 0, y: 8, scale: 0.98 }}
-                  transition={{ duration: 0.16 }}
+            {open && (
+                <div
                   className="absolute right-0 top-[calc(100%+12px)] w-56 overflow-hidden rounded-2xl border border-[#e8e8e3] bg-white py-2 text-[#27332d] shadow-[0_16px_40px_rgba(26,38,31,0.18)]"
                 >
                   {user ? (
@@ -377,19 +310,18 @@ export default function Navbar() {
                       </Link>
                     </>
                   )}
-                </motion.div>
-              )}
-            </AnimatePresence>
+                </div>
+            )}
           </div>
         </div>
 
-        <div className="flex items-center gap-2 md:hidden">
+        <div className="flex shrink-0 items-center gap-2 md:hidden">
           <button
             type="button"
             onClick={toggleTheme}
             aria-label={`Switch to ${theme === "dark" ? "light" : "dark"} theme`}
             title={`Switch to ${theme === "dark" ? "light" : "dark"} theme`}
-            className={`flex h-10 w-10 items-center justify-center rounded-full border ${
+            className={`flex ${scrolled ? "h-9 w-9" : "h-10 w-10"} items-center justify-center rounded-full border transition-[height,width] duration-300 ease-out ${
               isLight ? "border-[#e0e1dc]" : "border-white/35"
             }`}
           >
@@ -400,43 +332,42 @@ export default function Navbar() {
             onClick={() => setMobileSearchOpen(true)}
             aria-label="Plan your stay"
             title="Plan your stay"
-            className="flex h-10 items-center gap-2 rounded-full border border-current/20 px-3 text-xs font-medium"
+            className={`flex ${scrolled ? "h-9 w-9 px-0" : "h-10 w-[90px] px-3"} items-center justify-center gap-2 overflow-hidden rounded-full border border-current/20 text-xs font-medium transition-[height,width,padding] duration-300 ease-out`}
           >
             <Search size={15} />
-            {scrolled && <span>Search</span>}
+            <span
+              aria-hidden="true"
+              className={`overflow-hidden whitespace-nowrap transition-[max-width,opacity] duration-200 ${
+                scrolled ? "max-w-0 opacity-0" : "max-w-12 opacity-100"
+              }`}
+            >
+              Search
+            </span>
           </button>
           <button
             type="button"
             onClick={() => setOpen((value) => !value)}
             aria-label={open ? "Close menu" : "Open menu"}
             aria-expanded={open}
-            className={`flex h-10 w-10 items-center justify-center rounded-full border ${
+            className={`flex ${scrolled ? "h-9 w-9" : "h-10 w-10"} items-center justify-center rounded-full border transition-[height,width] duration-300 ease-out ${
               isLight ? "border-[#e0e1dc]" : "border-white/35"
             }`}
           >
             {open ? <X size={18} /> : <Menu size={18} />}
           </button>
         </div>
-      </motion.div>
+      </div>
 
-      <AnimatePresence>
-        {mobileSearchOpen && (
+      {mobileSearchOpen && (
           <>
-            <motion.button
+            <button
               type="button"
               aria-label="Close stay search"
               onClick={() => setMobileSearchOpen(false)}
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
               className="fixed inset-0 z-40 bg-[#0e1713]/65 backdrop-blur-sm"
             />
-            <motion.form
+            <form
               onSubmit={submitSearch}
-              initial={{ opacity: 0, y: 16, scale: 0.98 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, y: 12, scale: 0.98 }}
-              transition={{ duration: 0.22 }}
               className="fixed left-4 right-4 top-24 z-50 mx-auto grid max-w-xl gap-3 rounded-[28px] border border-white/15 bg-[#17231e] p-5 text-white shadow-2xl"
             >
               <div className="mb-1 flex items-center justify-between">
@@ -515,28 +446,19 @@ export default function Navbar() {
               >
                 <Search size={16} /> Search stays
               </button>
-            </motion.form>
+            </form>
           </>
-        )}
-      </AnimatePresence>
+      )}
 
-      <AnimatePresence>
-        {open && (
+      {open && (
           <>
-            <motion.button
+            <button
               type="button"
               aria-label="Close navigation menu"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
               onClick={() => setOpen(false)}
               className="fixed inset-0 -z-10 bg-black/20 md:hidden"
             />
-            <motion.nav
-              initial={{ opacity: 0, y: -8, scale: 0.98 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, y: -8, scale: 0.98 }}
-              transition={{ duration: 0.18 }}
+            <nav
               className="mx-auto mt-2 max-w-[1440px] rounded-3xl border border-[#e8e8e3] bg-white p-3 text-[#27332d] shadow-[0_16px_40px_rgba(26,38,31,0.18)] md:hidden"
             >
               {links.map((link) => (
@@ -591,10 +513,9 @@ export default function Navbar() {
                   Sign out
                 </button>
               )}
-            </motion.nav>
+            </nav>
           </>
-        )}
-      </AnimatePresence>
+      )}
     </header>
   );
 }

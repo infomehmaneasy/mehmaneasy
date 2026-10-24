@@ -10,11 +10,14 @@ import {
   BedDouble,
   CalendarDays,
   CheckCircle,
+  Clock3,
   Heart,
   MapPin,
   Users,
+  X,
 } from "lucide-react";
 import Navbar from "@/components/Navbar";
+import PropertyMap from "@/components/PropertyMap";
 import { useAuth } from "@/context/AuthContext";
 import { openTawkChat } from "@/components/TawkChatWidget";
 
@@ -25,6 +28,7 @@ export default function PropertyDetailPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [activeImg, setActiveImg] = useState(0);
+  const [galleryOpen, setGalleryOpen] = useState(false);
   const [checkIn, setCheckIn] = useState("");
   const [checkOut, setCheckOut] = useState("");
   const [guests, setGuests] = useState(2);
@@ -41,6 +45,15 @@ export default function PropertyDetailPage() {
   useEffect(() => {
     if (profile?.phone) setGuestPhone(profile.phone);
   }, [profile?.phone]);
+
+  useEffect(() => {
+    if (!galleryOpen) return undefined;
+    function closeOnEscape(event) {
+      if (event.key === "Escape") setGalleryOpen(false);
+    }
+    window.addEventListener("keydown", closeOnEscape);
+    return () => window.removeEventListener("keydown", closeOnEscape);
+  }, [galleryOpen]);
 
   useEffect(() => {
     let active = true;
@@ -147,6 +160,10 @@ export default function PropertyDetailPage() {
   }
 
   const images = property.images?.length ? property.images : [];
+  const galleryImages = images
+    .map((image, index) => ({ image, index }))
+    .filter(({ index }) => index !== activeImg)
+    .slice(0, 4);
   const priceBasis =
     property.priceBasis || (property.category === "Rental" ? "month" : "listing");
   const tripDatesValid =
@@ -216,7 +233,69 @@ export default function PropertyDetailPage() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.55, ease: [0.22, 1, 0.36, 1] }}
         >
-          <div className="flex flex-wrap items-start justify-between gap-4">
+          {images.length > 0 ? (
+            <div className={`relative mt-1 grid gap-2 overflow-hidden rounded-[24px] bg-[#eeeae2] md:h-[430px] ${images.length > 1 ? "md:grid-cols-[1.3fr_1fr]" : "md:grid-cols-1"}`}>
+              <button
+                type="button"
+                onClick={() => setActiveImg((activeImg + 1) % images.length)}
+                className="relative h-[280px] overflow-hidden md:h-full"
+                aria-label="Show next property photo"
+              >
+                <img
+                  src={images[activeImg] || images[0]}
+                  alt={property.title}
+                  className="h-full w-full object-cover transition-transform duration-500 hover:scale-[1.02]"
+                />
+                <span className="absolute bottom-4 left-4 rounded-full bg-black/60 px-3 py-1.5 text-xs font-medium text-white">
+                  {activeImg + 1} / {images.length}
+                </span>
+              </button>
+              {galleryImages.length > 0 && (
+                <div
+                  className={`hidden min-h-0 gap-2 md:grid ${
+                    galleryImages.length === 1
+                      ? "grid-cols-1 grid-rows-1"
+                      : galleryImages.length === 2
+                        ? "grid-cols-1 grid-rows-2"
+                        : "grid-cols-2 grid-rows-2"
+                  }`}
+                >
+                  {galleryImages.map(({ image, index }, galleryIndex) => (
+                    <button
+                      type="button"
+                      key={`${image}-${index}`}
+                      onClick={() => setActiveImg(index)}
+                      className={`relative min-h-0 overflow-hidden ${
+                        galleryImages.length === 3 && galleryIndex === 2
+                          ? "col-span-2"
+                          : ""
+                      }`}
+                      aria-label={`View property photo ${index + 1}`}
+                    >
+                      <img
+                        src={image}
+                        alt={`${property.title}, photo ${index + 1}`}
+                        className="h-full w-full object-cover transition-transform duration-500 hover:scale-[1.04]"
+                      />
+                    </button>
+                  ))}
+                </div>
+              )}
+              <button
+                type="button"
+                onClick={() => setGalleryOpen(true)}
+                className="absolute bottom-4 right-4 z-10 rounded-lg border border-white/80 bg-white/95 px-3 py-2 text-xs font-semibold text-[#29352f] shadow transition hover:bg-white"
+              >
+                View all {images.length} photos
+              </button>
+            </div>
+          ) : (
+            <div className="mt-7 flex h-64 items-center justify-center rounded-[24px] bg-[#f0eee8] text-sm text-[#758078]">
+              Photos are being prepared for this stay.
+            </div>
+          )}
+
+          <div className="mt-6 flex flex-wrap items-start justify-between gap-4">
             <div>
               <div className="flex flex-wrap items-center gap-2">
                 <span className="inline-flex items-center gap-1.5 rounded-full bg-[#edf5ef] px-3 py-1.5 text-xs font-semibold text-[#376247]">
@@ -229,13 +308,12 @@ export default function PropertyDetailPage() {
                   </span>
                 )}
               </div>
-              <h1 className="mt-4 text-3xl font-semibold leading-tight tracking-[-0.035em] sm:text-4xl">
+              <h1 className="mt-3 text-3xl font-semibold leading-tight tracking-[-0.035em] sm:text-4xl">
                 {property.title}
               </h1>
               <p className="mt-2 flex items-center gap-1.5 text-sm text-[#65716a]">
                 <MapPin size={15} className="text-[#bd604a]" />
-                {property.mapCoordinates ? "Exact map pin" : "Approximate location"} ·{" "}
-                {property.city}
+                {property.mapCoordinates ? "Exact map pin" : "Approximate location"} · {property.city}
               </p>
             </div>
             {property.rating && (
@@ -249,51 +327,6 @@ export default function PropertyDetailPage() {
               </p>
             )}
           </div>
-
-          {images.length > 0 ? (
-            <div className="mt-7 grid h-[360px] grid-cols-2 gap-2 overflow-hidden rounded-[24px] bg-[#eeeae2] sm:h-[480px] md:grid-cols-4">
-              <button
-                type="button"
-                onClick={() => setActiveImg(0)}
-                className="col-span-2 row-span-2 overflow-hidden"
-                aria-label="View main property photo"
-              >
-                <img
-                  src={images[activeImg] || images[0]}
-                  alt={property.title}
-                  className="h-full w-full object-cover transition-transform duration-500 hover:scale-[1.02]"
-                />
-              </button>
-              {images.slice(1, 5).map((image, index) => (
-                <button
-                  type="button"
-                  key={image}
-                  onClick={() => setActiveImg(index + 1)}
-                  className="hidden overflow-hidden md:block"
-                  aria-label={`View property photo ${index + 2}`}
-                >
-                  <img
-                    src={image}
-                    alt={`${property.title}, photo ${index + 2}`}
-                    className="h-full w-full object-cover transition-transform duration-500 hover:scale-[1.04]"
-                  />
-                </button>
-              ))}
-              {images.length > 1 && (
-                <button
-                  type="button"
-                  onClick={() => setActiveImg((activeImg + 1) % images.length)}
-                  className="absolute sr-only"
-                >
-                  Next photo
-                </button>
-              )}
-            </div>
-          ) : (
-            <div className="mt-7 flex h-64 items-center justify-center rounded-[24px] bg-[#f0eee8] text-sm text-[#758078]">
-              Photos are being prepared for this stay.
-            </div>
-          )}
 
           {images.length > 1 && (
             <div className="mt-3 flex gap-2 overflow-x-auto">
@@ -311,6 +344,51 @@ export default function PropertyDetailPage() {
                   <img src={image} alt="" className="h-full w-full object-cover" />
                 </button>
               ))}
+            </div>
+          )}
+
+          {galleryOpen && (
+            <div
+              role="dialog"
+              aria-modal="true"
+              aria-label={`${property.title} photos`}
+              className="fixed inset-0 z-[70] flex flex-col bg-[#111713]/95 text-white backdrop-blur-sm"
+            >
+              <div className="flex shrink-0 items-center justify-between border-b border-white/15 px-5 py-4 sm:px-8">
+                <p className="text-sm font-semibold">
+                  {property.title} <span className="font-normal text-white/65">· {images.length} photos</span>
+                </p>
+                <button
+                  type="button"
+                  onClick={() => setGalleryOpen(false)}
+                  aria-label="Close photo gallery"
+                  className="flex h-10 w-10 items-center justify-center rounded-full border border-white/25 transition hover:bg-white/10"
+                >
+                  <X size={19} />
+                </button>
+              </div>
+              <div className="flex-1 overflow-y-auto px-4 py-5 sm:px-8">
+                <div className="mx-auto grid max-w-5xl gap-3 sm:grid-cols-2">
+                  {images.map((image, index) => (
+                    <button
+                      key={`${image}-${index}`}
+                      type="button"
+                      onClick={() => {
+                        setActiveImg(index);
+                        setGalleryOpen(false);
+                      }}
+                      aria-label={`Select photo ${index + 1}`}
+                      className="overflow-hidden rounded-xl focus:outline-none focus-visible:ring-2 focus-visible:ring-[#e1bd79]"
+                    >
+                      <img
+                        src={image}
+                        alt={`${property.title}, photo ${index + 1}`}
+                        className="max-h-[70vh] w-full object-cover"
+                      />
+                    </button>
+                  ))}
+                </div>
+              </div>
             </div>
           )}
 
@@ -356,21 +434,15 @@ export default function PropertyDetailPage() {
 
               <div className="py-7">
                 <h2 className="text-lg font-semibold">Location</h2>
-                <div className="mt-4 flex min-h-40 items-center justify-center rounded-2xl bg-[#e9eee9] p-5 text-center">
-                  <div>
-                    <MapPin className="mx-auto text-[#bd604a]" size={23} />
-                    <p className="mt-2 text-sm font-semibold text-[#34433b]">
-                      {property.mapCoordinates
-                        ? `Exact map pin · ${property.city}`
-                        : `Approximate area · ${property.city}`}
-                    </p>
-                    <p className="mt-1 text-xs text-[#65716a]">
-                      {property.mapCoordinates
-                        ? "The host has chosen to share this pin. The full address remains private until a confirmed booking."
-                        : "The host has kept the precise location private. The full address is shared after a confirmed booking."}
-                    </p>
-                  </div>
+                <p className="mt-1 text-sm text-[#65716a]">
+                  Exact property location in {property.city}
+                </p>
+                <div className="mt-4">
+                  <PropertyMap properties={[property]} destination={property.city} />
                 </div>
+                <p className="mt-3 text-xs leading-5 text-[#65716a]">
+                  The map shows the host-provided pin. The full street address remains private.
+                </p>
               </div>
             </div>
 
@@ -527,32 +599,49 @@ export default function PropertyDetailPage() {
                   initial={{ opacity: 0, y: 16, scale: 0.97 }}
                   animate={{ opacity: 1, y: 0, scale: 1 }}
                   transition={{ type: "spring", stiffness: 260, damping: 22 }}
-                  className="relative mt-4 overflow-hidden rounded-2xl border border-[#cfe2d4] bg-gradient-to-br from-[#f0f8f1] to-[#e8f3eb] p-5 text-[#315e41] shadow-sm"
+                  className="relative mt-4 overflow-hidden rounded-2xl border border-[#8bb79c]/40 bg-gradient-to-br from-[#173b36] via-[#19433b] to-[#215346] p-5 text-white shadow-[0_16px_36px_rgba(20,55,46,0.2)] sm:p-6"
                 >
                   <motion.span
                     aria-hidden="true"
-                    className="absolute right-5 top-5 text-[#4f9365]"
+                    className="absolute right-5 top-5 text-[#b6dfc2]"
                     initial={{ scale: 0.3, rotate: -30 }}
                     animate={{ scale: [0.3, 1.18, 1], rotate: 0 }}
                     transition={{ duration: 0.65, ease: "easeOut" }}
                   >
                     <CheckCircle size={30} />
                   </motion.span>
-                  <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[#4f795b]">
-                    Request received
+                  <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[#c2e1ca]">
+                    Your stay request
                   </p>
-                  <h3 className="mt-2 pr-10 text-lg font-semibold text-[#285437]">
+                  <h3 className="mt-2 pr-10 text-lg font-semibold leading-7 text-white">
                     Wonderful choice! Your request is on its way.
                   </h3>
-                  <p className="mt-2 text-sm leading-6 text-[#45634d]">
+                  <p className="mt-2 text-sm leading-6 text-white/80">
                     The host will review your dates. We&apos;ll show their response in your trips. No payment has been collected, and your stay is not confirmed yet.
                   </p>
-                  <p className="mt-3 text-xs font-medium text-[#587560]">
+                  <ol
+                    aria-label="Request progress"
+                    className="mt-5 grid grid-cols-3 gap-2 border-y border-white/15 py-4"
+                  >
+                    <li className="flex flex-col items-center gap-2 text-center text-[10px] font-semibold leading-4 text-white sm:flex-row sm:justify-center sm:text-xs">
+                      <CheckCircle size={18} className="shrink-0 text-[#b6dfc2]" />
+                      <span>Request sent</span>
+                    </li>
+                    <li className="flex flex-col items-center gap-2 text-center text-[10px] font-medium leading-4 text-white/75 sm:flex-row sm:justify-center sm:text-xs">
+                      <Clock3 size={18} className="shrink-0 text-white/65" />
+                      <span>Host review</span>
+                    </li>
+                    <li className="flex flex-col items-center gap-2 text-center text-[10px] font-medium leading-4 text-white/75 sm:flex-row sm:justify-center sm:text-xs">
+                      <CalendarDays size={18} className="shrink-0 text-white/65" />
+                      <span>Stay confirmed</span>
+                    </li>
+                  </ol>
+                  <p className="mt-4 text-xs font-medium text-white/75">
                     Request reference · {bookingResult.id.slice(0, 8)}
                   </p>
                   <Link
                     href="/dashboard"
-                    className="mt-4 inline-flex rounded-full bg-[#315e41] px-4 py-2.5 text-xs font-semibold text-white transition hover:bg-[#244b33]"
+                    className="mt-4 inline-flex min-h-11 w-full items-center justify-center rounded-full bg-white px-5 py-3 text-sm font-semibold text-[#173b36] transition hover:bg-[#eaf3ec] sm:w-auto"
                   >
                     Track your request
                   </Link>

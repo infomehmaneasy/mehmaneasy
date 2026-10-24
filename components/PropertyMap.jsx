@@ -184,8 +184,8 @@ export default function PropertyMap({ properties = [], destination = "" }) {
             Your next stay will find its place here.
           </p>
           <p className="mx-auto mt-2 max-w-xs text-xs leading-5 text-[#65716a]">
-            Exact pins appear when a host shares the property location. Other stays
-            are shown by city area.
+            Hosts add an exact pin when listing. The public map never displays a
+            full street address.
           </p>
         </div>
       )}

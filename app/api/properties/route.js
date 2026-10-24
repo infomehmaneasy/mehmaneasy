@@ -56,7 +56,7 @@ export async function GET(req) {
       return NextResponse.json({ error: "Invalid property type." }, { status: 400 });
     }
     const stayTier = url.searchParams.get("stayTier");
-    if (stayTier && !["Royal", "Gold", "Easy"].includes(stayTier)) {
+    if (stayTier && !["Royal", "Classic", "Easy"].includes(stayTier)) {
       return NextResponse.json({ error: "Invalid stay category." }, { status: 400 });
     }
     const amenity = url.searchParams.getAll("amenity").slice(0, 20);
@@ -183,7 +183,7 @@ export async function POST(req) {
       !data.address?.trim() ||
       !data.pincode?.trim() ||
       !PROPERTY_TYPES.includes(data.propertyType) ||
-      !["Royal", "Gold", "Easy"].includes(data.stayTier) ||
+      !["Royal", "Classic", "Easy"].includes(data.stayTier) ||
       !["night", "month"].includes(data.priceBasis) ||
       !Array.isArray(data.images) ||
       data.images.length < 3 ||
@@ -198,12 +198,11 @@ export async function POST(req) {
       );
     }
     if (
-      data.shareExactLocation &&
-      (data.latitude === null || data.latitude === undefined ||
-        data.longitude === null || data.longitude === undefined)
+      data.latitude === null || data.latitude === undefined ||
+      data.longitude === null || data.longitude === undefined
     ) {
       return NextResponse.json(
-        { error: "Add a property location before choosing to show its exact map pin." },
+        { error: "Add a location pin before submitting this stay." },
         { status: 400 }
       );
     }
@@ -218,9 +217,9 @@ export async function POST(req) {
     const publicData = {
       ...data,
       city: data.city.trim(),
-      shareExactLocation: data.shareExactLocation === true,
-      mapLatitude: data.shareExactLocation ? data.latitude : null,
-      mapLongitude: data.shareExactLocation ? data.longitude : null,
+      shareExactLocation: true,
+      mapLatitude: data.latitude,
+      mapLongitude: data.longitude,
     };
     for (const field of ["status", "address", "pincode", "latitude", "longitude", "lat", "lng"]) {
       delete publicData[field];

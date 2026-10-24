@@ -5,7 +5,7 @@ import { motion } from "framer-motion";
 import Link from "next/link";
 import { Bath, BedDouble, Heart, MapPin } from "lucide-react";
 
-export default function PropertyCard({ property, index = 0 }) {
+export default function PropertyCard({ property, index = 0, compact = false }) {
   const propertyId = String(property.id || property._id);
   const [savedIds, setSavedIds] = useState([]);
   const saved = savedIds.includes(propertyId);
@@ -73,7 +73,7 @@ export default function PropertyCard({ property, index = 0 }) {
       }}
       className="group min-w-0"
     >
-      <div className="relative aspect-[0.92] overflow-hidden rounded-[22px] bg-[#e8e6de]">
+      <div className={`relative overflow-hidden rounded-[16px] bg-[#e8e6de] ${compact ? "aspect-square sm:aspect-[1.28]" : "aspect-[1.28]"}`}>
         <Link
           href={`/property/${property.id || property._id}`}
           aria-label={`View ${property.title}`}
@@ -87,9 +87,9 @@ export default function PropertyCard({ property, index = 0 }) {
           />
           <span className="absolute inset-0 bg-gradient-to-t from-black/35 via-transparent to-transparent opacity-70" />
         </Link>
-        {property.isFeatured && (
-          <span className="absolute bottom-3 left-3 rounded-full bg-white/95 px-3 py-1.5 text-[11px] font-semibold text-[#29352f] shadow-sm">
-            Featured stay
+        {(property.isFeatured || property.stayTier) && (
+          <span className="absolute bottom-2 left-2 rounded-full bg-white/95 px-2.5 py-1 text-[9px] font-semibold text-[#29352f] shadow-sm sm:bottom-3 sm:left-3 sm:px-3 sm:py-1.5 sm:text-[11px]">
+            {property.stayTier || "Featured stay"}
           </span>
         )}
         <button
@@ -97,7 +97,7 @@ export default function PropertyCard({ property, index = 0 }) {
           aria-label={saved ? "Remove from saved stays" : "Save this stay"}
           aria-pressed={saved}
           onClick={toggleSaved}
-          className="absolute right-3 top-3 flex h-10 w-10 items-center justify-center rounded-full bg-black/20 text-white backdrop-blur-sm transition hover:scale-105 hover:bg-black/35"
+          className="absolute right-2 top-2 flex h-8 w-8 items-center justify-center rounded-full bg-black/25 text-white backdrop-blur-sm transition hover:scale-105 hover:bg-black/40 sm:right-3 sm:top-3 sm:h-9 sm:w-9"
         >
           <Heart
             size={21}
@@ -109,10 +109,10 @@ export default function PropertyCard({ property, index = 0 }) {
 
       <Link
         href={`/property/${property.id || property._id}`}
-        className="mt-3 block"
+        className={`${compact ? "mt-2" : "mt-3"} block`}
       >
         <div className="flex items-start justify-between gap-3">
-          <h3 className="line-clamp-1 text-sm font-semibold text-[#29352f] transition-colors group-hover:text-[#bd604a]">
+          <h3 className={`line-clamp-1 font-serif font-semibold text-[#173b36] transition-colors group-hover:text-[#9d7839] ${compact ? "text-[13px] sm:text-base" : "text-base"}`}>
             {property.title || "A welcoming stay"}
           </h3>
           {property.rating && (
@@ -121,13 +121,13 @@ export default function PropertyCard({ property, index = 0 }) {
             </span>
           )}
         </div>
-        <p className="mt-1 flex items-center gap-1 text-xs text-[#707a73]">
+        <p className={`${compact ? "mt-0.5 text-[10px] sm:text-xs" : "mt-1 text-xs"} flex items-center gap-1 text-[#707a73]`}>
           <MapPin size={13} className="shrink-0" />
           <span className="truncate">
             {property.city}
           </span>
         </p>
-        <div className="mt-2 flex items-center gap-3 text-xs text-[#707a73]">
+        {!compact && <div className="mt-2 flex items-center gap-3 text-xs text-[#707a73]">
           {!!property.bedrooms && (
             <span className="inline-flex items-center gap-1">
               <BedDouble size={14} /> {property.bedrooms} beds
@@ -141,8 +141,8 @@ export default function PropertyCard({ property, index = 0 }) {
           <span className="inline-flex items-center gap-1">
             <span>{property.capacity || 2}</span> guests
           </span>
-        </div>
-        <p className="mt-2 text-sm text-[#29352f]">
+        </div>}
+        <p className={`${compact ? "mt-1 text-xs sm:mt-2 sm:text-sm" : "mt-2 text-sm"} text-[#29352f]`}>
           <span className="font-semibold">₹{price}</span>{" "}
           <span className="text-[#707a73]">
             {priceBasis === "night"

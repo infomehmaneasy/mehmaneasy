@@ -87,44 +87,30 @@ export async function PUT(req, { params }) {
     delete propertyUpdates.longitude;
     delete propertyUpdates.tourismLicenseId;
 
-    const { data: currentProperty, error: propertyError } = await supabase
-      .from("properties")
-      .select("shareExactLocation")
-      .eq("id", params.id)
-      .maybeSingle();
-    if (propertyError) throw propertyError;
-    if (!currentProperty) {
-      return NextResponse.json({ error: "Property not found." }, { status: 404 });
-    }
-
     const privateUpdates = {};
     for (const field of ["address", "pincode", "latitude", "longitude", "tourismLicenseId"]) {
       if (Object.hasOwn(updates, field)) privateUpdates[field] = updates[field];
     }
-    const shareExactLocation = Object.hasOwn(updates, "shareExactLocation")
-      ? updates.shareExactLocation
-      : currentProperty.shareExactLocation;
     const latitude = Object.hasOwn(privateUpdates, "latitude")
       ? privateUpdates.latitude
       : privateData.latitude;
     const longitude = Object.hasOwn(privateUpdates, "longitude")
       ? privateUpdates.longitude
       : privateData.longitude;
-    if (shareExactLocation && (latitude == null || longitude == null)) {
+    if (
+      latitude == null ||
+      longitude == null ||
+      !Number.isFinite(Number(latitude)) ||
+      !Number.isFinite(Number(longitude))
+    ) {
       return NextResponse.json(
-        { error: "Add a property location before choosing to show its exact map pin." },
+        { error: "Add a location pin before saving this stay." },
         { status: 400 }
       );
     }
-    const mapLocationChanged =
-      Object.hasOwn(updates, "shareExactLocation") ||
-      Object.hasOwn(privateUpdates, "latitude") ||
-      Object.hasOwn(privateUpdates, "longitude");
-    if (mapLocationChanged) {
-      propertyUpdates.shareExactLocation = shareExactLocation;
-      propertyUpdates.mapLatitude = shareExactLocation ? latitude : null;
-      propertyUpdates.mapLongitude = shareExactLocation ? longitude : null;
-    }
+    propertyUpdates.shareExactLocation = true;
+    propertyUpdates.mapLatitude = Number(latitude);
+    propertyUpdates.mapLongitude = Number(longitude);
 
     const privateListingChanged = ["address", "pincode", "latitude", "longitude"]
       .some((field) => Object.hasOwn(privateUpdates, field));

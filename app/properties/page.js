@@ -30,7 +30,7 @@ export default function PropertiesListingPage() {
   const [pool, setPool] = useState(false);
 
   const [expanded, setExpanded] = useState(false);
-  const [mobileView, setMobileView] = useState("map");
+  const [mobileView, setMobileView] = useState("stays");
   const [sortBy, setSortBy] = useState("newest");
   const [tripDetails, setTripDetails] = useState(null);
 
@@ -228,17 +228,23 @@ export default function PropertiesListingPage() {
               />
             </div>
 
-            <select
-              value={category}
-              onChange={(event) => setCategory(event.target.value)}
-              aria-label="Stay collection"
-              className="cursor-pointer rounded-full border border-[#e8e7e1] bg-white px-4 py-2 text-xs font-semibold text-[#34433b]"
-            >
-              <option value="All">All collections</option>
-              <option value="Royal">Royal</option>
-              <option value="Gold">Gold</option>
-              <option value="Easy">Easy</option>
-            </select>
+            <div role="group" aria-label="Stay collection" className="flex w-full gap-2 overflow-x-auto lg:w-auto">
+              {["All", "Classic", "Easy", "Royal"].map((tier) => (
+                <button
+                  key={tier}
+                  type="button"
+                  aria-pressed={category === tier}
+                  onClick={() => setCategory(tier)}
+                  className={`shrink-0 rounded-full border px-4 py-2 text-xs font-semibold transition ${
+                    category === tier
+                      ? "border-[#073b38] bg-[#073b38] text-white"
+                      : "border-[#e8e7e1] bg-white text-[#34433b] hover:border-[#9b804b]"
+                  }`}
+                >
+                  {tier === "All" ? "All stays" : tier}
+                </button>
+              ))}
+            </div>
 
             {/* More filters and sorting triggers */}
             <div className="flex items-center gap-2 w-full lg:w-auto">
@@ -406,7 +412,7 @@ export default function PropertiesListingPage() {
           <div
             role="tablist"
             aria-label="Choose map or stay list"
-            className="inline-flex rounded-full border border-[#d8d9d2] bg-white p-1 lg:hidden"
+            className="inline-flex rounded-full border border-[#d8d9d2] bg-white p-1"
           >
             <button
               type="button"
@@ -441,10 +447,10 @@ export default function PropertiesListingPage() {
         </div>
 
         {/* Properties Grid Display */}
-        <div className="grid gap-8 lg:grid-cols-[minmax(0,1.05fr)_minmax(340px,0.95fr)]">
-          <div className={`${mobileView === "stays" ? "block" : "hidden"} lg:block`}>
+        <div className="grid gap-8">
+          <div className={`${mobileView === "stays" ? "block" : "hidden"}`}>
             {loading ? (
-              <div className="grid grid-cols-1 gap-8 sm:grid-cols-2">
+              <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 xl:grid-cols-3">
                 {Array.from({ length: 6 }).map((_, i) => (
                   <div key={i} className="h-96 animate-pulse rounded-3xl bg-white/5" />
                 ))}
@@ -478,7 +484,7 @@ export default function PropertiesListingPage() {
                 </p>
               </div>
             ) : (
-              <div className="grid grid-cols-1 gap-8 sm:grid-cols-2">
+              <div className="grid grid-cols-2 gap-x-3 gap-y-6 sm:grid-cols-2 sm:gap-6 xl:grid-cols-3">
                 {filteredProperties.map((p, idx) => (
                   <motion.div
                     key={p.id || idx}
@@ -487,18 +493,18 @@ export default function PropertiesListingPage() {
                     viewport={{ once: true }}
                     transition={{ duration: 0.5, delay: (idx % 3) * 0.05 }}
                   >
-                    <PropertyCard property={p} index={idx} />
+                    <PropertyCard property={p} index={idx} compact />
                   </motion.div>
                 ))}
               </div>
             )}
           </div>
           <div
-            className={`${mobileView === "map" ? "block" : "hidden"} order-first lg:sticky lg:top-28 lg:order-none lg:block lg:self-start`}
+            className={`${mobileView === "map" ? "block" : "hidden"} lg:sticky lg:top-28 lg:self-start`}
           >
             <PropertyMap properties={filteredProperties} destination={keyword} />
             <p className="mt-2 px-1 text-[11px] leading-5 text-[#758078]">
-              Exact pins are shown only when a host chooses to share them; all other stays are marked by city area.
+              Public map pins mark each stay; full street addresses remain private.
             </p>
           </div>
         </div>
