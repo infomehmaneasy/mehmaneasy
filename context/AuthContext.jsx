@@ -85,6 +85,15 @@ export function AuthProvider({ children }) {
 
   async function registerWithEmail(registrationData) {
     if (!supabase) throw new Error("Supabase is not configured.");
+    const availability = await fetch("/api/maintenance", { cache: "no-store" });
+    const availabilityData = await availability.json();
+    if (!availability.ok) {
+      throw new Error(availabilityData.error || "Unable to check site availability.");
+    }
+    if (availabilityData.maintenance?.enabled) {
+      throw new Error(availabilityData.maintenance.message || "Sign-in and sign-up are temporarily unavailable.");
+    }
+
     const { data, error } = await supabase.auth.signUp({
       email: registrationData.email.trim().toLowerCase(),
       password: registrationData.password,
@@ -106,6 +115,14 @@ export function AuthProvider({ children }) {
 
   async function login(email, password) {
     if (!supabase) throw new Error("Supabase is not configured.");
+    const availability = await fetch("/api/maintenance", { cache: "no-store" });
+    const availabilityData = await availability.json();
+    if (!availability.ok) {
+      throw new Error(availabilityData.error || "Unable to check site availability.");
+    }
+    if (availabilityData.maintenance?.enabled) {
+      throw new Error(availabilityData.maintenance.message || "Sign-in and sign-up are temporarily unavailable.");
+    }
     const { data, error } = await supabase.auth.signInWithPassword({ email, password });
     if (error) throw error;
     return data;
@@ -113,6 +130,14 @@ export function AuthProvider({ children }) {
 
   async function loginWithGoogle(role) {
     if (!supabase) throw new Error("Supabase is not configured.");
+    const availability = await fetch("/api/maintenance", { cache: "no-store" });
+    const availabilityData = await availability.json();
+    if (!availability.ok) {
+      throw new Error(availabilityData.error || "Unable to check site availability.");
+    }
+    if (availabilityData.maintenance?.enabled) {
+      throw new Error(availabilityData.maintenance.message || "Sign-in and sign-up are temporarily unavailable.");
+    }
     if (role) window.localStorage.setItem("pendingGoogleRole", role);
     const { error } = await supabase.auth.signInWithOAuth({
       provider: "google",

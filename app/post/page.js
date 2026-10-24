@@ -3,12 +3,20 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
+import dynamic from "next/dynamic";
 import { motion } from "framer-motion";
 import { supabase } from "@/lib/supabase";
 import Navbar from "@/components/Navbar";
 import { useAuth } from "@/context/AuthContext";
 import { parseMapCoordinates } from "@/lib/mapLocation";
 import { useTheme } from "@/context/ThemeContext";
+
+const PropertyPinPicker = dynamic(() => import("@/components/PropertyPinPicker"), {
+  ssr: false,
+  loading: () => (
+    <div className="h-64 animate-pulse rounded-2xl bg-ink-panel" aria-label="Loading location map" />
+  ),
+});
 
 const PROPERTY_TYPES = [
   "Hotel",
@@ -64,7 +72,7 @@ function PostPropertyForm() {
     pincode: "",
     lat: "",
     lng: "",
-    shareExactLocation: false,
+    shareExactLocation: true,
     isFeatured: false,
   });
   const [mapLink, setMapLink] = useState("");
@@ -130,7 +138,7 @@ function PostPropertyForm() {
           petFriendly: Boolean(d.petFriendly),
           lat: String(d.location?.coordinates?.[1] ?? d.lat ?? ""),
           lng: String(d.location?.coordinates?.[0] ?? d.lng ?? ""),
-          shareExactLocation: Boolean(d.shareExactLocation),
+          shareExactLocation: true,
         }));
         setExistingImages(d.images || []);
       } catch (e) {
@@ -161,7 +169,7 @@ function PostPropertyForm() {
         update("lng", String(pos.coords.longitude));
         setError("");
       },
-      () => setError("Location access was unavailable. You can continue without it."),
+      () => setError("Location access was unavailable. Place the pin on the map or paste a Google Maps link."),
       { enableHighAccuracy: false, timeout: 10000 }
     );
   }
@@ -182,6 +190,10 @@ function PostPropertyForm() {
     setError("");
     if (!user || !profile || !hostReady) {
       setError("Sign in to your host account before posting a property.");
+      return;
+    }
+    if (!form.lat || !form.lng) {
+      setError("Place a pin on the map before submitting. It will appear on the public stay map.");
       return;
     }
     if (existingImages.length + files.length < 3) {
@@ -359,7 +371,7 @@ function PostPropertyForm() {
               <div className="rounded-xl border border-ink-line bg-ink-panel/60 p-3">
                 <p className="text-xs font-semibold text-cream/75">Stay collection</p>
                 <p className="mt-1 text-xs leading-5 text-cream/45">
-                  Mehmaan Easy assigns Easy, Royal, or Gold during the approval review.
+                  Mehmaan Easy assigns Classic, Easy, or Royal during the approval review.
                 </p>
               </div>
             </div>
@@ -485,11 +497,22 @@ function PostPropertyForm() {
 
             <section className="rounded-2xl border border-ink-line bg-ink-panel/70 p-4">
               <div>
-                <h2 className="text-sm font-semibold text-cream">Place your stay on the map</h2>
+                <h2 className="text-sm font-semibold text-cream">Pin your stay on the public map</h2>
                 <p className="mt-1 text-xs leading-5 text-cream/55">
-                  Use your current location, or paste a Google Maps pin link or
-                  latitude/longitude.
+                  Place the exact property pin by clicking the map, using your current location,
+                  or pasting a Google Maps link. A map pin is required to publish your stay.
                 </p>
+              </div>
+              <div className="mt-4">
+                <PropertyPinPicker
+                  latitude={form.lat}
+                  longitude={form.lng}
+                  onPick={(latitude, longitude) => {
+                    update("lat", String(latitude));
+                    update("lng", String(longitude));
+                    setError("");
+                  }}
+                />
               </div>
               <div className="mt-4 flex flex-col gap-2 sm:flex-row">
                 <input
@@ -527,22 +550,11 @@ function PostPropertyForm() {
                   </span>
                 )}
               </div>
-              <label className="mt-4 flex items-start gap-2.5 border-t border-white/10 pt-4 text-xs leading-5 text-cream/70">
-                <input
-                  type="checkbox"
-                  checked={form.shareExactLocation}
-                  disabled={!form.lat || !form.lng}
-                  onChange={(event) => update("shareExactLocation", event.target.checked)}
-                  className="mt-1 accent-gold"
-                />
-                <span>
-                  <span className="font-semibold text-cream">Show the exact pin on the public map</span>
-                  <span className="mt-0.5 block text-cream/50">
-                    This shares your precise map location with everyone. Leave this
-                    off to keep the address private and show guests the city area instead.
-                  </span>
-                </span>
-              </label>
+              <p className="mt-4 border-t border-white/10 pt-4 text-xs leading-5 text-cream/70">
+                <span className="font-semibold text-cream">Public map pin required.</span>{" "}
+                The pin appears on your public listing and the stay map. Your full street
+                address remains private.
+              </p>
             </section>
 
             <div className="flex flex-col gap-1.5 text-xs text-cream/60">

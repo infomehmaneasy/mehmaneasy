@@ -26,14 +26,44 @@ export async function PATCH(req, { params }) {
     if (action === "reject" && !notes.trim()) {
       return NextResponse.json({ error: "Add an improvement note before rejecting a listing." }, { status: 400 });
     }
-    if (action === "approve" && !["Easy", "Royal", "Gold"].includes(stayTier)) {
-      return NextResponse.json({ error: "Choose Easy, Royal, or Gold before publishing this stay." }, { status: 400 });
+    if (action === "approve" && !["Easy", "Royal", "Classic"].includes(stayTier)) {
+      return NextResponse.json({ error: "Choose Easy, Royal, or Classic before publishing this stay." }, { status: 400 });
+    }
+
+    let publicPin = {};
+    if (action === "approve") {
+      const { data: privateLocation, error: locationError } = await context.supabase
+        .from("property_private")
+        .select("latitude,longitude")
+        .eq("propertyId", params.id)
+        .maybeSingle();
+      if (locationError) throw locationError;
+      const latitude = Number(privateLocation?.latitude);
+      const longitude = Number(privateLocation?.longitude);
+      if (
+        !privateLocation ||
+        !Number.isFinite(latitude) ||
+        !Number.isFinite(longitude) ||
+        Math.abs(latitude) > 90 ||
+        Math.abs(longitude) > 180
+      ) {
+        return NextResponse.json(
+          { error: "This listing needs a valid location pin before it can be published." },
+          { status: 400 }
+        );
+      }
+      publicPin = {
+        shareExactLocation: true,
+        mapLatitude: latitude,
+        mapLongitude: longitude,
+      };
     }
 
     const { data: property, error } = await context.supabase
       .from("properties")
       .update({
         ...(action === "approve" ? { category: stayTier, stayTier } : {}),
+        ...publicPin,
         verificationStatus: action === "approve" ? "approved" : "rejected",
         verificationNotes: notes.trim(),
         status: action === "approve" ? "active" : "rejected",

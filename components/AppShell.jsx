@@ -5,7 +5,6 @@ import LoadingScreen from "@/components/LoadingScreen";
 import SupabaseSetupNotice from "@/components/SupabaseSetupNotice";
 import { isSupabaseConfigured } from "@/lib/supabase";
 import Footer from "@/components/Footer";
-
 import { useEffect } from "react";
 import Lenis from "lenis";
 
@@ -47,4 +46,3 @@ export default function AppShell({ children }) {
     </>
   );
 }
-

@@ -7,7 +7,7 @@ import { useAuth } from "@/context/AuthContext";
 
 export default function AuthCallbackPage() {
   const router = useRouter();
-  const { user, loading, setRole } = useAuth();
+  const { user, loading, setRole, signOut } = useAuth();
   const [error, setError] = useState("");
 
   useEffect(() => {
@@ -21,6 +21,15 @@ export default function AuthCallbackPage() {
     async function finishSignIn() {
       const requestedRole = window.localStorage.getItem("pendingGoogleRole");
       try {
+        const availabilityResponse = await fetch("/api/maintenance", { cache: "no-store" });
+        const availabilityData = await availabilityResponse.json();
+        if (!availabilityResponse.ok) {
+          throw new Error(availabilityData.error || "Unable to check site availability.");
+        }
+        if (availabilityData.maintenance?.enabled) {
+          await signOut();
+          throw new Error(availabilityData.maintenance.message || "Sign-in is temporarily unavailable.");
+        }
         if (requestedRole === "guest" || requestedRole === "host") {
           await setRole(requestedRole);
         }
@@ -42,7 +51,7 @@ export default function AuthCallbackPage() {
     return () => {
       active = false;
     };
-  }, [loading, router, setRole, user]);
+  }, [loading, router, setRole, signOut, user]);
 
   return (
     <main className="min-h-screen">

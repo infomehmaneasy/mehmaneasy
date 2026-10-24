@@ -13,9 +13,18 @@
 }
 
 body {
-  background-color: #fffdf9;
-  background-image: radial-gradient(circle at 1px 1px, rgba(33,48,41,0.035) 1px, transparent 0);
-  background-size: 32px 32px;
+  background-color: #fbf8f1;
+}
+
+main h1,
+main h2,
+main h3 {
+  font-family: var(--font-serif), Georgia, serif;
+}
+
+::selection {
+  background: #d7bd84;
+  color: #173b36;
 }
 
 html {
@@ -42,25 +51,68 @@ html[data-theme="dark"] main {
 }
 
 html[data-theme="dark"] main [class*="bg-white"],
+html[data-theme="dark"] main [class*="bg-[#e"],
+html[data-theme="dark"] main [class*="bg-[#f"],
+html[data-theme="dark"] main [data-collection-card],
 html[data-theme="dark"] main [class*="bg-[#fffdf9]"],
+html[data-theme="dark"] main [class*="bg-[#fbf8f1]"],
+html[data-theme="dark"] main [class*="bg-[#fbf8f"],
+html[data-theme="dark"] main [class*="bg-[#f0eadc]"],
+html[data-theme="dark"] main [class*="bg-[#edf0e8]"],
+html[data-theme="dark"] main [class*="bg-[#f1e9dc]"],
+html[data-theme="dark"] main [class*="bg-[#efe9db]"],
+html[data-theme="dark"] main [class*="bg-[#f0ede4]"],
+html[data-theme="dark"] main [class*="bg-[#f8f6f1]"],
+html[data-theme="dark"] main [class*="bg-[#f7f5f1]"],
+html[data-theme="dark"] main [class*="bg-[#f5f2eb]"],
+html[data-theme="dark"] main [class*="bg-[#f8eee8]"],
+html[data-theme="dark"] main [class*="bg-[#edf5ef]"],
+html[data-theme="dark"] main [class*="bg-[#fff1ed]"],
+html[data-theme="dark"] main [class*="bg-[#fcf5f1]"],
+html[data-theme="dark"] main [class*="bg-[#fff5e8]"],
 html[data-theme="dark"] header [class*="bg-white"],
-html[data-theme="dark"] footer {
+html[data-theme="dark"] footer [class*="bg-white"],
+html[data-theme="dark"] main [data-collection-card] {
   background-color: #1b2420 !important;
+}
+
+html[data-theme="dark"] main [data-collection-fade] {
+  background-image: linear-gradient(90deg, #1b2420, transparent) !important;
 }
 
 html[data-theme="dark"] main [class*="bg-[#f5f2eb]"],
 html[data-theme="dark"] main [class*="bg-[#f7f5f1]"],
-html[data-theme="dark"] footer [class*="bg-[#f7f5f0]"] {
+html[data-theme="dark"] main [class*="bg-[#f7f5f0]"],
+html[data-theme="dark"] main [class*="bg-[#f0eee8]"] {
   background-color: #171e1a !important;
 }
 
 html[data-theme="dark"] main [class*="text-[#29352f]"],
 html[data-theme="dark"] main [class*="text-[#26322c]"],
+html[data-theme="dark"] main [class*="text-[#173b36]"],
+html[data-theme="dark"] main [class*="text-[#20372f]"],
 html[data-theme="dark"] main [class*="text-[#34433b]"],
 html[data-theme="dark"] main [class*="text-[#24302b]"],
 html[data-theme="dark"] main [class*="text-[#3c4941]"],
+html[data-theme="dark"] main [class*="text-[#27332d]"],
+html[data-theme="dark"] main [class*="text-[#26332d]"],
+html[data-theme="dark"] main [class*="text-[#285437]"],
+html[data-theme="dark"] main [class*="text-[#2b5e3c]"],
+html[data-theme="dark"] main [class*="text-[#315e41]"],
+html[data-theme="dark"] main [class*="text-[#45634d]"],
+html[data-theme="dark"] main [class*="text-[#4f795b]"],
+html[data-theme="dark"] main [class*="text-[#587560]"],
+html[data-theme="dark"] main [class*="text-[#5b8a68]"],
+html[data-theme="dark"] main [class*="text-[#9b503e]"],
+html[data-theme="dark"] main [class*="text-[#073b38]"],
+html[data-theme="dark"] main [class*="text-[#4f9365]"],
+html[data-theme="dark"] main [class*="text-[#8d392c]"],
+html[data-theme="dark"] main [class*="text-[#a1392d]"],
+html[data-theme="dark"] main [class*="text-[#bd604a]"],
+html[data-theme="dark"] main [class*="text-[#37443c]"],
+html[data-theme="dark"] main [class*="text-[#376247]"],
 html[data-theme="dark"] header [class*="text-[#27332d]"],
-html[data-theme="dark"] footer {
+html[data-theme="dark"] header [class*="text-[#3c4941]"] {
   color: #f2f0e9 !important;
 }
 
@@ -68,8 +120,15 @@ html[data-theme="dark"] main [class*="text-[#65716a]"],
 html[data-theme="dark"] main [class*="text-[#707a73]"],
 html[data-theme="dark"] main [class*="text-[#758078]"],
 html[data-theme="dark"] main [class*="text-[#526058]"],
-html[data-theme="dark"] footer [class*="text-[#65716a]"],
-html[data-theme="dark"] footer [class*="text-[#758078]"] {
+html[data-theme="dark"] main [class*="text-[#59665f]"],
+html[data-theme="dark"] main [class*="text-[#66736b]"],
+html[data-theme="dark"] main [class*="text-[#87918a]"],
+html[data-theme="dark"] main [class*="text-[#828b84]"],
+html[data-theme="dark"] main [class*="text-[#858d87]"],
+html[data-theme="dark"] main [class*="text-[#a0a79f]"],
+html[data-theme="dark"] main [class*="text-[#8b5a18]"],
+html[data-theme="dark"] main [class*="text-[#a94d39]"],
+html[data-theme="dark"] header [class*="text-[#65716a]"] {
   color: #b7c0b9 !important;
 }
 
@@ -94,6 +153,15 @@ html[data-theme="dark"] input::placeholder {
 html[data-theme="dark"] header > div,
 html[data-theme="dark"] header nav {
   border-color: #303b35;
+}
+
+html[data-theme="dark"] footer {
+  color: #f2f0e9;
+}
+
+html[data-theme="dark"] summary,
+html[data-theme="dark"] label {
+  color: inherit;
 }
 
 html[data-theme="dark"] [aria-label="Map of available stays"] iframe {
