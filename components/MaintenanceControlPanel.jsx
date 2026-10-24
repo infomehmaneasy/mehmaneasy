@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 export default function MaintenanceControlPanel({ triggerLabel }) {
   const [open, setOpen] = useState(false);
@@ -23,22 +23,41 @@ export default function MaintenanceControlPanel({ triggerLabel }) {
   }
 
   async function openControls() {
-    setOpen(true);
     setError("");
     setNotice("");
     setChecking(true);
     try {
-      const response = await fetch("/api/maintenance/access", { cache: "no-store" });
-      const data = await response.json();
-      if (!response.ok) throw new Error(data.error || "Unable to verify maintenance access.");
-      setAuthorized(data.authorized);
-      if (data.authorized) await loadSettings();
+      const response = await fetch("/api/maintenance/access", { method: "DELETE" });
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.error || "Unable to start a new session.");
+      }
+      setAuthorized(false);
+      setEmail("");
+      setPassword("");
+      setOpen(true);
     } catch (accessError) {
       setError(accessError.message || "Unable to verify maintenance access.");
     } finally {
       setChecking(false);
     }
   }
+
+  const closeControls = useCallback(async () => {
+    setOpen(false);
+    setAuthorized(false);
+    setEmail("");
+    setPassword("");
+    try {
+      const response = await fetch("/api/maintenance/access", { method: "DELETE" });
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.error || "Unable to clear the developer session.");
+      }
+    } catch (closeError) {
+      console.error("Unable to clear the developer maintenance session:", closeError);
+    }
+  }, []);
 
   async function signIn(event) {
     event.preventDefault();
@@ -93,48 +112,42 @@ export default function MaintenanceControlPanel({ triggerLabel }) {
   useEffect(() => {
     if (!open) return undefined;
     function closeOnEscape(event) {
-      if (event.key === "Escape") setOpen(false);
+      if (event.key === "Escape") closeControls();
     }
     window.addEventListener("keydown", closeOnEscape);
     return () => window.removeEventListener("keydown", closeOnEscape);
-  }, [open]);
+  }, [closeControls, open]);
 
   return (
     <>
       <button
         type="button"
         onClick={openControls}
-        title="Open developer maintenance controls"
         className="transition-colors hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#d7bd84]"
       >
         {triggerLabel}
       </button>
+      {checking && !open && error && (
+        <span role="alert" className="sr-only">{error}</span>
+      )}
       {open && (
         <div
           className="fixed inset-0 z-[100] flex items-center justify-center bg-[#07120f]/75 p-4 backdrop-blur-sm"
           onMouseDown={(event) => {
-            if (event.target === event.currentTarget) setOpen(false);
+            if (event.target === event.currentTarget) closeControls();
           }}
         >
           <section
-            aria-labelledby="maintenance-control-title"
+            aria-label="Site controls"
             aria-modal="true"
             role="dialog"
             className="w-full max-w-lg rounded-[28px] border border-[#e8e7e1] bg-white p-6 text-[#27332d] shadow-2xl sm:p-8"
           >
             <div className="flex items-start justify-between gap-4">
-              <div>
-                <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[#9b804b]">
-                  Restricted site controls
-                </p>
-                <h2 id="maintenance-control-title" className="mt-2 text-2xl font-semibold">
-                  Website availability
-                </h2>
-              </div>
               <button
                 type="button"
-                aria-label="Close site controls"
-                onClick={() => setOpen(false)}
+                aria-label="Close"
+                onClick={closeControls}
                 className="rounded-full border border-[#e0e1dc] px-3 py-1 text-lg leading-6 text-[#526058]"
               >
                 ×
@@ -142,7 +155,7 @@ export default function MaintenanceControlPanel({ triggerLabel }) {
             </div>
 
             {checking ? (
-              <p className="mt-6 text-sm text-[#65716a]">Verifying developer access…</p>
+              <p role="status" className="sr-only">Please wait</p>
             ) : authorized ? (
               <form onSubmit={save} className="mt-6 space-y-5">
                 <label className="flex items-start gap-3 rounded-2xl border border-[#e5e4dc] bg-[#f8f7f3] p-4">
@@ -155,7 +168,7 @@ export default function MaintenanceControlPanel({ triggerLabel }) {
                   <span>
                     <span className="block text-sm font-semibold">Enable maintenance mode</span>
                     <span className="mt-1 block text-xs leading-5 text-[#65716a]">
-                      Visitors cannot access the site or create accounts while this is on.
+                      Visitors can still browse. Sign-in and sign-up are blocked while this is on.
                     </span>
                   </span>
                 </label>
@@ -183,38 +196,39 @@ export default function MaintenanceControlPanel({ triggerLabel }) {
                 </button>
               </form>
             ) : (
-              <form onSubmit={signIn} className="mt-6 space-y-4">
-                <p className="text-sm leading-6 text-[#65716a]">
-                  Sign in with the separate developer maintenance credentials.
-                </p>
-                <label className="block text-xs font-semibold text-[#34433b]">
-                  Developer email
+              <form onSubmit={signIn} className="space-y-4">
+                <label className="sr-only" htmlFor="maintenance-email">
+                  Email
+                </label>
                   <input
+                    id="maintenance-email"
                     type="email"
                     autoComplete="username"
+                    placeholder="Email"
                     required
                     value={email}
                     onChange={(event) => setEmail(event.target.value)}
-                    className="mt-2 w-full rounded-xl border border-[#d8d9d2] bg-white px-3 py-2.5 text-sm font-normal text-[#27332d] outline-none focus:border-[#173b36]"
+                    className="w-full rounded-xl border border-[#d8d9d2] bg-white px-3 py-2.5 text-sm font-normal text-[#27332d] outline-none focus:border-[#173b36]"
                   />
-                </label>
-                <label className="block text-xs font-semibold text-[#34433b]">
+                <label className="sr-only" htmlFor="maintenance-password">
                   Password
+                </label>
                   <input
+                    id="maintenance-password"
                     type="password"
                     autoComplete="current-password"
+                    placeholder="Password"
                     required
                     value={password}
                     onChange={(event) => setPassword(event.target.value)}
-                    className="mt-2 w-full rounded-xl border border-[#d8d9d2] bg-white px-3 py-2.5 text-sm font-normal text-[#27332d] outline-none focus:border-[#173b36]"
+                    className="w-full rounded-xl border border-[#d8d9d2] bg-white px-3 py-2.5 text-sm font-normal text-[#27332d] outline-none focus:border-[#173b36]"
                   />
-                </label>
                 <button
                   type="submit"
                   disabled={checking}
                   className="w-full rounded-full bg-[#173b36] px-5 py-3 text-sm font-semibold text-white transition hover:bg-[#25564e] disabled:opacity-60"
                 >
-                  {checking ? "Verifying…" : "Verify developer and continue"}
+                  {checking ? "…" : "Continue"}
                 </button>
               </form>
             )}
